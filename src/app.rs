@@ -59,7 +59,7 @@ impl Widget for &App {
     {
         let rows = [Row::new(vec!["0", "init", "100000", "100000", "50"])];
         let widths = [
-            Constraint::Length(10),
+            Constraint::Length(6),
             Constraint::Length(16),
             Constraint::Length(10),
             Constraint::Length(10),

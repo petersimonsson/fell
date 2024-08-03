@@ -1,0 +1,10 @@
+[package]
+name = "fell"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+crossterm = "0.28.1"
+ratatui = "0.27.0"
+sysinfo = "0.31.2"

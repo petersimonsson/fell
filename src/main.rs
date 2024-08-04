@@ -1,11 +1,14 @@
 use app::App;
 
 mod app;
+mod sysinfo_thread;
 mod tui;
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let mut terminal = tui::init()?;
-    let app_result = App::default().run(&mut terminal);
+    let thread_rx = sysinfo_thread::start_thread();
+    let app_result = App::default().run(&mut terminal, thread_rx).await;
     tui::restore()?;
     Ok(app_result?)
 }

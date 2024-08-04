@@ -1,0 +1,50 @@
+use std::{thread, time::Duration};
+
+use sysinfo::{Pid, System};
+use tokio::sync::mpsc;
+
+pub fn start_thread() -> mpsc::Receiver<Message> {
+    let (tx, rx) = mpsc::channel(10);
+    thread::spawn(move || thread_main(tx));
+
+    rx
+}
+
+fn thread_main(tx: mpsc::Sender<Message>) {
+    let mut sys = System::new_all();
+
+    loop {
+        sys.refresh_all();
+
+        let processes = sys
+            .processes()
+            .iter()
+            .map(|(_, p)| ProcessInfo {
+                pid: p.pid(),
+                name: p.name().to_string_lossy().to_string(),
+                memory: p.memory(),
+                virtual_memory: p.virtual_memory(),
+                cpu_usage: p.cpu_usage(),
+            })
+            .collect();
+
+        if let Err(_) = tx.blocking_send(Message { processes }) {
+            break;
+        }
+
+        thread::sleep(Duration::from_millis(1_000));
+    }
+}
+
+pub struct Message {
+    pub processes: Vec<ProcessInfo>,
+}
+
+#[derive(Debug)]
+pub struct ProcessInfo {
+    pub pid: Pid,
+    pub name: String,
+    pub memory: u64,
+    pub virtual_memory: u64,
+    pub cpu_usage: f32,
+}

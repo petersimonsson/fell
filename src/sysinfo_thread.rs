@@ -1,6 +1,6 @@
 use std::{io, thread, time::Duration};
 
-use sysinfo::{Pid, System};
+use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
 use tokio::sync::mpsc;
 
 pub fn start_thread() -> io::Result<mpsc::Receiver<Message>> {
@@ -14,9 +14,11 @@ pub fn start_thread() -> io::Result<mpsc::Receiver<Message>> {
 
 fn thread_main(tx: mpsc::Sender<Message>) {
     let mut sys = System::new();
+    let process_refresh = ProcessRefreshKind::new().with_cpu().with_memory();
+    let refresh = RefreshKind::new().with_processes(process_refresh);
 
     loop {
-        sys.refresh_all();
+        sys.refresh_specifics(refresh);
 
         let processes = sys
             .processes()

@@ -13,7 +13,7 @@ pub fn start_thread() -> io::Result<mpsc::Receiver<Message>> {
 }
 
 fn thread_main(tx: mpsc::Sender<Message>) {
-    let mut sys = System::new_all();
+    let mut sys = System::new();
 
     loop {
         sys.refresh_all();

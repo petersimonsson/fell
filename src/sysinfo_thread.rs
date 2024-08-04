@@ -1,13 +1,15 @@
-use std::{thread, time::Duration};
+use std::{io, thread, time::Duration};
 
 use sysinfo::{Pid, System};
 use tokio::sync::mpsc;
 
-pub fn start_thread() -> mpsc::Receiver<Message> {
+pub fn start_thread() -> io::Result<mpsc::Receiver<Message>> {
     let (tx, rx) = mpsc::channel(10);
-    thread::spawn(move || thread_main(tx));
+    thread::Builder::new()
+        .name("fell-sysinfo".to_string())
+        .spawn(move || thread_main(tx))?;
 
-    rx
+    Ok(rx)
 }
 
 fn thread_main(tx: mpsc::Sender<Message>) {

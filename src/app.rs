@@ -3,22 +3,21 @@ use std::io;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind};
 use futures::{select, FutureExt, StreamExt};
 use ratatui::{
-    layout::Constraint,
+    layout::{Constraint, Layout},
     style::{Style, Stylize},
-    widgets::{Block, Borders, Row, Table, Widget},
+    text::Line,
+    widgets::{Block, Borders, Paragraph, Row, Table, Widget},
     Frame,
 };
+use sysinfo::ThreadKind;
 use tokio::{pin, sync::mpsc};
 
-use crate::{
-    sysinfo_thread::{Message, ProcessInfo},
-    tui::Tui,
-};
+use crate::{sysinfo_thread::Message, tui::Tui};
 
 #[derive(Debug, Default)]
 pub struct App {
     exit: bool,
-    processes: Vec<ProcessInfo>,
+    current_data: Message,
 }
 
 impl App {
@@ -81,9 +80,7 @@ impl App {
     }
 
     fn handle_msg(&mut self, msg: Message) {
-        let mut processes = msg.processes;
-        processes.sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
-        self.processes = processes;
+        self.current_data = msg;
     }
 }
 
@@ -92,34 +89,75 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        let widths = [
-            Constraint::Length(6),
-            Constraint::Length(16),
-            Constraint::Length(10),
-            Constraint::Length(10),
-            Constraint::Length(6),
-        ];
+        let vertical = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]);
+        let [info_area, process_area] = vertical.areas(area);
+
+        let info = vec![Line::from(format!(
+            "Uptime: {} Tasks: {} Threads: {} Kernel Threads: {} Running: {}",
+            humantime::format_duration(self.current_data.uptime),
+            self.current_data.tasks,
+            self.current_data.threads,
+            self.current_data.kernel_threads,
+            self.current_data.running,
+        ))];
+        Paragraph::new(info).render(info_area, buf);
+
+        let mut max_user = 0;
 
         let rows: Vec<Row> = self
+            .current_data
             .processes
             .iter()
             .map(|p| {
+                let style = if let Some(kind) = p.thread_kind {
+                    if kind == ThreadKind::Kernel {
+                        Style::default().gray()
+                    } else {
+                        Style::default()
+                    }
+                } else {
+                    Style::default().yellow()
+                };
+                if let Some(user) = &p.user {
+                    max_user = max_user.max(user.len());
+                }
                 Row::new(vec![
                     p.pid.to_string(),
+                    p.user.clone().unwrap_or_default(),
                     p.name.clone(),
-                    p.virtual_memory.to_string(),
-                    p.memory.to_string(),
-                    p.cpu_usage.to_string(),
+                    human_bytes::human_bytes(p.virtual_memory as f64),
+                    human_bytes::human_bytes(p.memory as f64),
+                    format!("{:.1}%", p.cpu_usage),
+                    p.exe
+                        .as_ref()
+                        .map(|e| e.to_string_lossy())
+                        .unwrap_or_default()
+                        .to_string(),
                 ])
+                .style(style)
             })
             .collect();
 
-        let process_table = Table::new(rows, widths)
+        max_user = max_user.min(10);
+
+        let widths = [
+            Constraint::Max(6),
+            Constraint::Max(max_user as u16),
+            Constraint::Max(16),
+            Constraint::Length(10),
+            Constraint::Length(10),
+            Constraint::Length(6),
+            Constraint::Fill(1),
+        ];
+
+        Table::new(rows, widths)
             .column_spacing(1)
             .block(Block::new().title("Processes").borders(Borders::ALL))
-            .header(Row::new(vec!["PID", "Name", "Virt", "Res", "CPU%"]).style(Style::new().bold()))
-            .highlight_style(Style::new().reversed());
-
-        process_table.render(area, buf);
+            .header(
+                Row::new(vec!["PID", "User", "Name", "Virt", "Res", "CPU%", "Exe"])
+                    .style(Style::new().bold()),
+            )
+            .highlight_style(Style::new().reversed())
+            .render(process_area, buf);
     }
 }

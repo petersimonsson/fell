@@ -1,8 +1,7 @@
-use std::{io, path::PathBuf, thread, time::Duration};
+use std::{io, thread, time::Duration};
 
 use sysinfo::{
-    CpuRefreshKind, Pid, ProcessRefreshKind, ProcessStatus, RefreshKind, System, ThreadKind,
-    UpdateKind, Users,
+    CpuRefreshKind, Pid, ProcessRefreshKind, RefreshKind, System, ThreadKind, UpdateKind, Users,
 };
 use tokio::sync::mpsc;
 
@@ -21,7 +20,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
     let process_refresh = ProcessRefreshKind::new()
         .with_cpu()
         .with_memory()
-        .with_exe(UpdateKind::OnlyIfNotSet)
+        .with_cmd(UpdateKind::OnlyIfNotSet)
         .with_user(UpdateKind::OnlyIfNotSet);
     let cpu_refresh = CpuRefreshKind::new().with_cpu_usage();
     let refresh = RefreshKind::new()
@@ -43,6 +42,12 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                 } else {
                     None
                 };
+                let command = p
+                    .cmd()
+                    .iter()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .collect::<Vec<String>>()
+                    .join(" ");
                 ProcessInfo {
                     pid: p.pid(),
                     name: p.name().to_string_lossy().to_string(),
@@ -51,7 +56,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                     cpu_usage: p.cpu_usage() / sys.cpus().len() as f32,
                     thread_kind: p.thread_kind(),
                     user,
-                    exe: p.exe().map(|e| e.to_owned()),
+                    command,
                 }
             })
             .collect();
@@ -60,7 +65,6 @@ fn thread_main(tx: mpsc::Sender<Message>) {
         let mut tasks = 0;
         let mut threads = 0;
         let mut kernel_threads = 0;
-        let mut running = 0;
 
         for proc in sys.processes().values() {
             if let Some(kind) = proc.thread_kind() {
@@ -72,10 +76,6 @@ fn thread_main(tx: mpsc::Sender<Message>) {
             } else {
                 tasks += 1;
             }
-
-            if proc.status() == ProcessStatus::Run {
-                running += 1;
-            }
         }
 
         if tx
@@ -84,7 +84,6 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                 tasks,
                 threads,
                 kernel_threads,
-                running,
                 uptime: Duration::from_secs(System::uptime()),
             })
             .is_err()
@@ -102,7 +101,6 @@ pub struct Message {
     pub tasks: u64,
     pub threads: u64,
     pub kernel_threads: u64,
-    pub running: u64,
     pub uptime: Duration,
 }
 
@@ -115,5 +113,5 @@ pub struct ProcessInfo {
     pub cpu_usage: f32,
     pub thread_kind: Option<ThreadKind>,
     pub user: Option<String>,
-    pub exe: Option<PathBuf>,
+    pub command: String,
 }

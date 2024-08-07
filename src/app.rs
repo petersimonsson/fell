@@ -93,12 +93,11 @@ impl Widget for &App {
         let [info_area, process_area] = vertical.areas(area);
 
         let info = vec![Line::from(format!(
-            "Uptime: {} Tasks: {} Threads: {} Kernel Threads: {} Running: {}",
+            "Uptime: {} Tasks: {} Threads: {} Kernel Threads: {}",
             humantime::format_duration(self.current_data.uptime),
             self.current_data.tasks,
             self.current_data.threads,
             self.current_data.kernel_threads,
-            self.current_data.running,
         ))];
         Paragraph::new(info).render(info_area, buf);
 
@@ -128,11 +127,7 @@ impl Widget for &App {
                     human_bytes::human_bytes(p.virtual_memory as f64),
                     human_bytes::human_bytes(p.memory as f64),
                     format!("{:.1}%", p.cpu_usage),
-                    p.exe
-                        .as_ref()
-                        .map(|e| e.to_string_lossy())
-                        .unwrap_or_default()
-                        .to_string(),
+                    p.command.clone(),
                 ])
                 .style(style)
             })
@@ -154,8 +149,10 @@ impl Widget for &App {
             .column_spacing(1)
             .block(Block::new().title("Processes").borders(Borders::ALL))
             .header(
-                Row::new(vec!["PID", "User", "Name", "Virt", "Res", "CPU%", "Exe"])
-                    .style(Style::new().bold()),
+                Row::new(vec![
+                    "PID", "User", "Name", "Virt", "Res", "CPU%", "Command",
+                ])
+                .style(Style::new().bold()),
             )
             .highlight_style(Style::new().reversed())
             .render(process_area, buf);

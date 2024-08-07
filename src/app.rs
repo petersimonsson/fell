@@ -4,9 +4,9 @@ use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind};
 use futures::{select, FutureExt, StreamExt};
 use ratatui::{
     layout::{Constraint, Layout},
-    style::{Style, Stylize},
+    style::{Style, Styled, Stylize},
     text::Line,
-    widgets::{Block, Borders, Paragraph, Row, Table, Widget},
+    widgets::{Block, Borders, Padding, Paragraph, Row, Table, Widget},
     Frame,
 };
 use sysinfo::ThreadKind;
@@ -89,17 +89,33 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        let vertical = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]);
+        let vertical = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]);
         let [info_area, process_area] = vertical.areas(area);
 
-        let info = vec![Line::from(format!(
-            "Uptime: {} Tasks: {} Threads: {} Kernel Threads: {}",
-            humantime::format_duration(self.current_data.uptime),
-            self.current_data.tasks,
-            self.current_data.threads,
-            self.current_data.kernel_threads,
-        ))];
-        Paragraph::new(info).render(info_area, buf);
+        let info = vec![Line::default().spans(vec![
+            "Uptime: ".set_style(Style::default()),
+            humantime::format_duration(self.current_data.uptime)
+                .to_string()
+                .set_style(Style::default().bold()),
+            " Tasks: ".set_style(Style::default().yellow()),
+            self.current_data
+                .tasks
+                .to_string()
+                .set_style(Style::default().yellow().bold()),
+            " Threads: ".set_style(Style::default()),
+            self.current_data
+                .threads
+                .to_string()
+                .set_style(Style::default().bold()),
+            " Kernel Threads: ".set_style(Style::default().gray()),
+            self.current_data
+                .kernel_threads
+                .to_string()
+                .set_style(Style::default().gray().bold()),
+        ])];
+        Paragraph::new(info)
+            .block(Block::new().padding(Padding::symmetric(2, 1)))
+            .render(info_area, buf);
 
         let mut max_user = 0;
 

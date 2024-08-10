@@ -96,11 +96,11 @@ impl Widget for &App {
             humantime::format_duration(self.current_data.uptime)
                 .to_string()
                 .set_style(Style::default().bold()),
-            " Tasks: ".set_style(Style::default().yellow()),
+            " Tasks: ".set_style(Style::default().cyan()),
             self.current_data
                 .tasks
                 .to_string()
-                .set_style(Style::default().yellow().bold()),
+                .set_style(Style::default().cyan().bold()),
             " Threads: ".set_style(Style::default()),
             self.current_data
                 .threads
@@ -126,7 +126,7 @@ impl Widget for &App {
                 let style = if p.kernel_thread {
                     Style::default().gray()
                 } else {
-                    Style::default().yellow()
+                    Style::default().cyan()
                 };
                 if let Some(user) = &p.user {
                     max_user = max_user.max(user.len());

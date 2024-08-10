@@ -99,6 +99,23 @@ impl Widget for &App {
                     .set_style(Style::default().bold()),
             ]),
             Line::default().spans(vec![
+                "Load average: ".set_style(Style::default()),
+                self.current_data
+                    .load_avg_one
+                    .to_string()
+                    .set_style(Style::default().bold()),
+                " ".set_style(Style::default()),
+                self.current_data
+                    .load_avg_five
+                    .to_string()
+                    .set_style(Style::default().bold()),
+                " ".set_style(Style::default()),
+                self.current_data
+                    .load_avg_fifteen
+                    .to_string()
+                    .set_style(Style::default().bold()),
+            ]),
+            Line::default().spans(vec![
                 "Tasks: ".set_style(Style::default().cyan()),
                 self.current_data
                     .tasks
@@ -117,7 +134,12 @@ impl Widget for &App {
             ]),
         ];
         Paragraph::new(info)
-            .block(Block::new().padding(Padding::symmetric(2, 1)))
+            .block(Block::new().padding(Padding {
+                top: 0,
+                bottom: 1,
+                left: 1,
+                right: 1,
+            }))
             .render(info_area, buf);
 
         let mut max_user = 0;

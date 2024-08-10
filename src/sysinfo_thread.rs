@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io, thread, time::Duration};
 
-use procfs::{process, Current, Uptime};
+use procfs::{process, Current, LoadAverage, Uptime};
 use tokio::sync::mpsc;
 
 pub fn start_thread() -> io::Result<mpsc::Receiver<Message>> {
@@ -95,6 +95,15 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 
             let tasks = process_infos.len() as u64 - kernel_threads;
 
+            let mut load_avg_one = 0.0;
+            let mut load_avg_five = 0.0;
+            let mut load_avg_fifteen = 0.0;
+            if let Ok(current) = LoadAverage::current() {
+                load_avg_one = current.one;
+                load_avg_five = current.five;
+                load_avg_fifteen = current.fifteen;
+            }
+
             process_infos.sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
 
             if tx
@@ -104,6 +113,9 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                     threads: threads as u64,
                     kernel_threads,
                     uptime: Duration::from_secs(uptime as u64),
+                    load_avg_one,
+                    load_avg_five,
+                    load_avg_fifteen,
                 })
                 .is_err()
             {
@@ -124,6 +136,9 @@ pub struct Message {
     pub threads: u64,
     pub kernel_threads: u64,
     pub uptime: Duration,
+    pub load_avg_one: f32,
+    pub load_avg_five: f32,
+    pub load_avg_fifteen: f32,
 }
 
 #[derive(Debug)]

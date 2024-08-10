@@ -9,7 +9,6 @@ use ratatui::{
     widgets::{Block, Borders, Padding, Paragraph, Row, Table, Widget},
     Frame,
 };
-use sysinfo::ThreadKind;
 use tokio::{pin, sync::mpsc};
 
 use crate::{sysinfo_thread::Message, tui::Tui};
@@ -56,7 +55,7 @@ impl App {
     }
 
     fn render_frame(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.size());
+        frame.render_widget(self, frame.area());
     }
 
     fn handle_event(&mut self, event: Event) {
@@ -124,12 +123,8 @@ impl Widget for &App {
             .processes
             .iter()
             .map(|p| {
-                let style = if let Some(kind) = p.thread_kind {
-                    if kind == ThreadKind::Kernel {
-                        Style::default().gray()
-                    } else {
-                        Style::default()
-                    }
+                let style = if p.kernel_thread {
+                    Style::default().gray()
                 } else {
                     Style::default().yellow()
                 };

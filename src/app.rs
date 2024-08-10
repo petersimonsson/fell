@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Constraint, Layout},
     style::{Style, Styled, Stylize},
     text::Line,
-    widgets::{Block, Borders, Padding, Paragraph, Row, Table, Widget},
+    widgets::{Block, Padding, Paragraph, Row, Table, Widget},
     Frame,
 };
 use tokio::{pin, sync::mpsc};

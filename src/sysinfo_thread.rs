@@ -17,7 +17,11 @@ fn thread_main(tx: mpsc::Sender<Message>) {
     let ticks_per_sec = procfs::ticks_per_second();
     let mut running_processes: HashMap<i32, ProcStats> = HashMap::new();
     loop {
-        let uptime = Uptime::current().unwrap().uptime;
+        let uptime = if let Ok(current) = Uptime::current() {
+            current.uptime
+        } else {
+            break;
+        };
         let mut kernel_threads = 0;
         let mut threads = 0;
 
@@ -25,30 +29,39 @@ fn thread_main(tx: mpsc::Sender<Message>) {
             let mut process_infos: Vec<ProcessInfo> = processes
                 .filter_map(|p| {
                     if let Ok(p) = p {
-                        let stat = p.stat().unwrap();
-                        let status = p.status().unwrap();
-                        let used_time = stat.stime + stat.utime;
+                        let mut cpu_usage = 0.0;
+                        let mut memory = 0;
+                        let mut virtual_memory = 0;
+                        if let Ok(stat) = p.stat() {
+                            let used_time = stat.stime + stat.utime;
+                            let process_status =
+                                if let Some(status) = running_processes.get_mut(&p.pid) {
+                                    status
+                                } else {
+                                    let status = ProcStats::default();
+                                    running_processes.insert(p.pid, status);
 
-                        let process_status = if let Some(status) = running_processes.get_mut(&p.pid)
-                        {
-                            status
-                        } else {
-                            let status = ProcStats::default();
-                            running_processes.insert(p.pid, status);
+                                    running_processes.get_mut(&p.pid).unwrap()
+                                };
 
-                            running_processes.get_mut(&p.pid).unwrap()
+                            cpu_usage = if process_status.last_update > 0.0 {
+                                let interval =
+                                    (uptime - process_status.last_update) * ticks_per_sec as f64;
+                                (used_time - process_status.used_time) as f64 * 100.0 / interval
+                            } else {
+                                0.0
+                            };
+
+                            process_status.last_update = uptime;
+                            process_status.used_time = used_time;
+                            memory = stat.rss * page_size;
+                            virtual_memory = stat.vsize;
                         };
 
-                        let cpu_usage = if process_status.last_update > 0.0 {
-                            let interval =
-                                (uptime - process_status.last_update) * ticks_per_sec as f64;
-                            (used_time - process_status.used_time) as f64 * 100.0 / interval
-                        } else {
-                            0.0
-                        };
-
-                        process_status.last_update = uptime;
-                        process_status.used_time = used_time;
+                        let mut name = String::default();
+                        if let Ok(status) = p.status() {
+                            name = status.name;
+                        }
 
                         let (command, kernel_thread) = if let Ok(cmd) = p.cmdline() {
                             if cmd.is_empty() {
@@ -66,9 +79,9 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 
                         Some(ProcessInfo {
                             pid: p.pid(),
-                            name: status.name,
-                            memory: stat.rss * page_size,
-                            virtual_memory: stat.vsize,
+                            name,
+                            memory,
+                            virtual_memory,
                             cpu_usage,
                             user: None,
                             command,
@@ -97,10 +110,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                 break;
             }
 
-            running_processes = running_processes
-                .into_iter()
-                .filter(|(_, p)| p.last_update.eq(&uptime))
-                .collect();
+            running_processes.retain(|_, p| p.last_update.eq(&uptime));
         }
 
         thread::sleep(Duration::from_millis(1_500));

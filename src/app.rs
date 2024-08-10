@@ -88,30 +88,34 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        let vertical = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]);
+        let vertical = Layout::vertical([Constraint::Length(4), Constraint::Fill(1)]);
         let [info_area, process_area] = vertical.areas(area);
 
-        let info = vec![Line::default().spans(vec![
-            "Uptime: ".set_style(Style::default()),
-            humantime::format_duration(self.current_data.uptime)
-                .to_string()
-                .set_style(Style::default().bold()),
-            " Tasks: ".set_style(Style::default().cyan()),
-            self.current_data
-                .tasks
-                .to_string()
-                .set_style(Style::default().cyan().bold()),
-            " Threads: ".set_style(Style::default()),
-            self.current_data
-                .threads
-                .to_string()
-                .set_style(Style::default().bold()),
-            " Kernel Threads: ".set_style(Style::default().gray()),
-            self.current_data
-                .kernel_threads
-                .to_string()
-                .set_style(Style::default().gray().bold()),
-        ])];
+        let info = vec![
+            Line::default().spans(vec![
+                "Uptime: ".set_style(Style::default()),
+                humantime::format_duration(self.current_data.uptime)
+                    .to_string()
+                    .set_style(Style::default().bold()),
+            ]),
+            Line::default().spans(vec![
+                "Tasks: ".set_style(Style::default().cyan()),
+                self.current_data
+                    .tasks
+                    .to_string()
+                    .set_style(Style::default().cyan().bold()),
+                " Threads: ".set_style(Style::default()),
+                self.current_data
+                    .threads
+                    .to_string()
+                    .set_style(Style::default().bold()),
+                " Kernel Threads: ".set_style(Style::default().gray()),
+                self.current_data
+                    .kernel_threads
+                    .to_string()
+                    .set_style(Style::default().gray().bold()),
+            ]),
+        ];
         Paragraph::new(info)
             .block(Block::new().padding(Padding::symmetric(2, 1)))
             .render(info_area, buf);
@@ -158,7 +162,6 @@ impl Widget for &App {
 
         Table::new(rows, widths)
             .column_spacing(1)
-            .block(Block::new().title("Processes").borders(Borders::ALL))
             .header(
                 Row::new(vec![
                     "PID", "User", "Name", "Virt", "Res", "CPU%", "Command",

@@ -88,10 +88,48 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        let vertical = Layout::vertical([Constraint::Length(4), Constraint::Fill(1)]);
+        let cpu_lines: Vec<Line> = self
+            .current_data
+            .cpu_percents
+            .iter()
+            .enumerate()
+            .collect::<Vec<(usize, &f64)>>()
+            .chunks(4)
+            .map(|v| {
+                let mut line_spans = Vec::new();
+                for (i, p) in v {
+                    line_spans.push(format!("{}: ", i).set_style(Style::default()));
+                    line_spans.push(format!("{:.1}% ", p).set_style(Style::default().bold()));
+                }
+
+                Line::default().spans(line_spans)
+            })
+            .collect();
+
+        let vertical = Layout::vertical([
+            Constraint::Length(cpu_lines.len().min(4) as u16 + 1),
+            Constraint::Fill(1),
+        ]);
         let [info_area, process_area] = vertical.areas(area);
 
+        let info_horiz =
+            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]);
+        let [info_area, cpu_area] = info_horiz.areas(info_area);
+
+        Paragraph::new(cpu_lines)
+            .block(Block::new().padding(Padding {
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 1,
+            }))
+            .render(cpu_area, buf);
+
         let info = vec![
+            Line::default().spans(vec![
+                "Average CPU: ".set_style(Style::default()),
+                format!("{:.1}%", self.current_data.average_cpu).set_style(Style::default().bold()),
+            ]),
             Line::default().spans(vec![
                 "Uptime: ".set_style(Style::default()),
                 humantime::format_duration(self.current_data.uptime)
@@ -101,17 +139,20 @@ impl Widget for &App {
             Line::default().spans(vec![
                 "Load average: ".set_style(Style::default()),
                 self.current_data
-                    .load_avg_one
+                    .load_avg
+                    .one
                     .to_string()
                     .set_style(Style::default().bold()),
                 " ".set_style(Style::default()),
                 self.current_data
-                    .load_avg_five
+                    .load_avg
+                    .five
                     .to_string()
                     .set_style(Style::default().bold()),
                 " ".set_style(Style::default()),
                 self.current_data
-                    .load_avg_fifteen
+                    .load_avg
+                    .fifteen
                     .to_string()
                     .set_style(Style::default().bold()),
             ]),

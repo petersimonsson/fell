@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io, thread, time::Duration};
 
-use procfs::{process, Current, LoadAverage, Uptime};
+use procfs::{process, CpuTime, Current, CurrentSI, KernelStats, LoadAverage, Uptime};
 use tokio::sync::mpsc;
 
 pub fn start_thread() -> io::Result<mpsc::Receiver<Message>> {
@@ -16,6 +16,9 @@ fn thread_main(tx: mpsc::Sender<Message>) {
     let page_size = procfs::page_size();
     let ticks_per_sec = procfs::ticks_per_second();
     let mut running_processes: HashMap<i32, ProcStats> = HashMap::new();
+    let mut cpu_total_prev = CpuMetrics::default();
+    let mut cpus_prev: Vec<CpuMetrics> = Vec::new();
+
     loop {
         let uptime = if let Ok(current) = Uptime::current() {
             current.uptime
@@ -95,16 +98,36 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 
             let tasks = process_infos.len() as u64 - kernel_threads;
 
-            let mut load_avg_one = 0.0;
-            let mut load_avg_five = 0.0;
-            let mut load_avg_fifteen = 0.0;
-            if let Ok(current) = LoadAverage::current() {
-                load_avg_one = current.one;
-                load_avg_five = current.five;
-                load_avg_fifteen = current.fifteen;
-            }
+            let load_avg = if let Ok(current) = LoadAverage::current() {
+                LoadAvg::from_load_average(&current)
+            } else {
+                LoadAvg::default()
+            };
 
             process_infos.sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
+
+            let mut average_cpu = 0.0;
+            let mut cpu_percents = Vec::new();
+            if let Ok(current) = KernelStats::current() {
+                let metrics = CpuMetrics::from_cpu_time(&current.total);
+                let cpus: Vec<CpuMetrics> = current
+                    .cpu_time
+                    .iter()
+                    .map(CpuMetrics::from_cpu_time)
+                    .collect();
+
+                if cpu_total_prev.total_time() > 0 {
+                    average_cpu = metrics.cpu_usage(&cpu_total_prev);
+                    cpu_percents = cpus
+                        .iter()
+                        .zip(cpus_prev.iter())
+                        .map(|(n, o)| n.cpu_usage(o))
+                        .collect();
+                }
+
+                cpu_total_prev = metrics;
+                cpus_prev = cpus;
+            }
 
             if tx
                 .blocking_send(Message {
@@ -113,9 +136,9 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                     threads: threads as u64,
                     kernel_threads,
                     uptime: Duration::from_secs(uptime as u64),
-                    load_avg_one,
-                    load_avg_five,
-                    load_avg_fifteen,
+                    load_avg,
+                    average_cpu,
+                    cpu_percents,
                 })
                 .is_err()
             {
@@ -136,9 +159,9 @@ pub struct Message {
     pub threads: u64,
     pub kernel_threads: u64,
     pub uptime: Duration,
-    pub load_avg_one: f32,
-    pub load_avg_five: f32,
-    pub load_avg_fifteen: f32,
+    pub load_avg: LoadAvg,
+    pub average_cpu: f64,
+    pub cpu_percents: Vec<f64>,
 }
 
 #[derive(Debug)]
@@ -157,4 +180,74 @@ pub struct ProcessInfo {
 struct ProcStats {
     last_update: f64,
     used_time: u64,
+}
+
+#[derive(Debug, Default)]
+pub struct LoadAvg {
+    pub one: f32,
+    pub five: f32,
+    pub fifteen: f32,
+}
+
+impl LoadAvg {
+    fn from_load_average(avg: &LoadAverage) -> Self {
+        LoadAvg {
+            one: avg.one,
+            five: avg.five,
+            fifteen: avg.fifteen,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct CpuMetrics {
+    user: u64,
+    system: u64,
+    nice: u64,
+    idle: u64,
+    iowait: Option<u64>,
+    irq: Option<u64>,
+    softirq: Option<u64>,
+    steal: Option<u64>,
+    guest: Option<u64>,
+    guest_nice: Option<u64>,
+}
+
+impl CpuMetrics {
+    fn from_cpu_time(cpu_time: &CpuTime) -> Self {
+        CpuMetrics {
+            user: cpu_time.user,
+            system: cpu_time.system,
+            nice: cpu_time.nice,
+            idle: cpu_time.idle,
+            iowait: cpu_time.iowait,
+            irq: cpu_time.irq,
+            softirq: cpu_time.softirq,
+            steal: cpu_time.steal,
+            guest: cpu_time.guest,
+            guest_nice: cpu_time.guest_nice,
+        }
+    }
+
+    fn work_time(&self) -> u64 {
+        self.user
+            .saturating_add(self.system)
+            .saturating_add(self.nice)
+            .saturating_add(self.irq.unwrap_or(0))
+            .saturating_add(self.softirq.unwrap_or(0))
+    }
+
+    fn total_time(&self) -> u64 {
+        self.work_time()
+            .saturating_add(self.idle)
+            .saturating_add(self.iowait.unwrap_or(0))
+            .saturating_add(self.steal.unwrap_or(0))
+            .saturating_add(self.guest.unwrap_or(0))
+            .saturating_add(self.guest_nice.unwrap_or(0))
+    }
+
+    fn cpu_usage(&self, old: &CpuMetrics) -> f64 {
+        (self.work_time() - old.work_time()) as f64 * 100.0
+            / (self.total_time() - old.total_time()) as f64
+    }
 }

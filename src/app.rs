@@ -97,8 +97,15 @@ impl Widget for &App {
                 .map(|v| {
                     let mut line_spans = Vec::new();
                     for (i, p) in v {
+                        let number_style = if **p > 75.0 {
+                            Style::default().red().bold()
+                        } else if **p > 50.0 {
+                            Style::default().yellow().bold()
+                        } else {
+                            Style::default().bold()
+                        };
                         line_spans.push(format!("{:3}: ", i).set_style(Style::default()));
-                        line_spans.push(format!("{:3.1}% ", p).set_style(Style::default().bold()));
+                        line_spans.push(format!("{:5.1}% ", p).set_style(number_style));
                     }
 
                     Line::default().spans(line_spans)
@@ -127,11 +134,18 @@ impl Widget for &App {
             }))
             .render(cpu_area, buf);
 
+        let average_cpu = self.current_data.average_cpu.unwrap_or(0.0);
+        let average_cpu_style = if average_cpu > 75.0 {
+            Style::default().red().bold()
+        } else if average_cpu > 50.0 {
+            Style::default().yellow().bold()
+        } else {
+            Style::default().bold()
+        };
         let info = vec![
             Line::default().spans(vec![
                 "Average CPU: ".set_style(Style::default()),
-                format!("{:.1}%", self.current_data.average_cpu.unwrap_or(0.0))
-                    .set_style(Style::default().bold()),
+                format!("{:.1}%", average_cpu).set_style(average_cpu_style),
             ]),
             Line::default().spans(vec![
                 "Uptime: ".set_style(Style::default()),

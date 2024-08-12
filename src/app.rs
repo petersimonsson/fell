@@ -105,7 +105,7 @@ impl Widget for &App {
                 })
                 .collect()
         } else {
-            Vec::default()
+            vec![Line::default().spans(["Calculating..."])]
         };
 
         let vertical = Layout::vertical([

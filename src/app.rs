@@ -88,23 +88,25 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        let cpu_lines: Vec<Line> = self
-            .current_data
-            .cpu_percents
-            .iter()
-            .enumerate()
-            .collect::<Vec<(usize, &f64)>>()
-            .chunks(4)
-            .map(|v| {
-                let mut line_spans = Vec::new();
-                for (i, p) in v {
-                    line_spans.push(format!("{:3}: ", i).set_style(Style::default()));
-                    line_spans.push(format!("{:3.1}% ", p).set_style(Style::default().bold()));
-                }
+        let cpu_lines: Vec<Line> = if let Some(cpu_percents) = &self.current_data.cpu_percents {
+            cpu_percents
+                .iter()
+                .enumerate()
+                .collect::<Vec<(usize, &f64)>>()
+                .chunks(4)
+                .map(|v| {
+                    let mut line_spans = Vec::new();
+                    for (i, p) in v {
+                        line_spans.push(format!("{:3}: ", i).set_style(Style::default()));
+                        line_spans.push(format!("{:3.1}% ", p).set_style(Style::default().bold()));
+                    }
 
-                Line::default().spans(line_spans)
-            })
-            .collect();
+                    Line::default().spans(line_spans)
+                })
+                .collect()
+        } else {
+            Vec::default()
+        };
 
         let vertical = Layout::vertical([
             Constraint::Length(cpu_lines.len().min(4) as u16 + 1),
@@ -128,7 +130,8 @@ impl Widget for &App {
         let info = vec![
             Line::default().spans(vec![
                 "Average CPU: ".set_style(Style::default()),
-                format!("{:.1}%", self.current_data.average_cpu).set_style(Style::default().bold()),
+                format!("{:.1}%", self.current_data.average_cpu.unwrap_or(0.0))
+                    .set_style(Style::default().bold()),
             ]),
             Line::default().spans(vec![
                 "Uptime: ".set_style(Style::default()),
@@ -185,31 +188,33 @@ impl Widget for &App {
 
         let mut max_user = 0;
 
-        let rows: Vec<Row> = self
-            .current_data
-            .processes
-            .iter()
-            .map(|p| {
-                let style = if p.kernel_thread {
-                    Style::default().gray()
-                } else {
-                    Style::default().cyan()
-                };
-                if let Some(user) = &p.user {
-                    max_user = max_user.max(user.len());
-                }
-                Row::new(vec![
-                    p.pid.to_string(),
-                    p.user.clone().unwrap_or_default(),
-                    p.name.clone(),
-                    human_bytes::human_bytes(p.virtual_memory as f64),
-                    human_bytes::human_bytes(p.memory as f64),
-                    format!("{:.1}%", p.cpu_usage),
-                    p.command.clone(),
-                ])
-                .style(style)
-            })
-            .collect();
+        let rows = if let Some(processes) = &self.current_data.processes {
+            processes
+                .iter()
+                .map(|p| {
+                    let style = if p.kernel_thread {
+                        Style::default().gray()
+                    } else {
+                        Style::default().cyan()
+                    };
+                    if let Some(user) = &p.user {
+                        max_user = max_user.max(user.len());
+                    }
+                    Row::new(vec![
+                        p.pid.to_string(),
+                        p.user.clone().unwrap_or_default(),
+                        p.name.clone(),
+                        human_bytes::human_bytes(p.virtual_memory as f64),
+                        human_bytes::human_bytes(p.memory as f64),
+                        format!("{:.1}%", p.cpu_usage),
+                        p.command.clone(),
+                    ])
+                    .style(style)
+                })
+                .collect()
+        } else {
+            Vec::default()
+        };
 
         max_user = max_user.min(10);
 

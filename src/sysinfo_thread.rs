@@ -28,14 +28,11 @@ fn thread_main(tx: mpsc::Sender<Message>) {
         let mut kernel_threads = 0;
         let mut threads = 0;
 
-        if let Ok(processes) = process::all_processes() {
+        let processes = if let Ok(processes) = process::all_processes() {
             let mut process_infos: Vec<ProcessInfo> = processes
                 .filter_map(|p| {
                     if let Ok(p) = p {
-                        let mut cpu_usage = 0.0;
-                        let mut memory = 0;
-                        let mut virtual_memory = 0;
-                        if let Ok(stat) = p.stat() {
+                        let (cpu_usage, memory, virtual_memory) = if let Ok(stat) = p.stat() {
                             let used_time = stat.stime + stat.utime;
                             let process_status =
                                 if let Some(status) = running_processes.get_mut(&p.pid) {
@@ -47,7 +44,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                                     running_processes.get_mut(&p.pid).unwrap()
                                 };
 
-                            cpu_usage = if process_status.last_update > 0.0 {
+                            let cpu_usage = if process_status.last_update > 0.0 {
                                 let interval =
                                     (uptime - process_status.last_update) * ticks_per_sec as f64;
                                 (used_time - process_status.used_time) as f64 * 100.0 / interval
@@ -57,8 +54,11 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 
                             process_status.last_update = uptime;
                             process_status.used_time = used_time;
-                            memory = stat.rss * page_size;
-                            virtual_memory = stat.vsize;
+                            let memory = stat.rss * page_size;
+                            let virtual_memory = stat.vsize;
+                            (cpu_usage, memory, virtual_memory)
+                        } else {
+                            (0.0, 0, 0)
                         };
 
                         let mut name = String::default();
@@ -96,57 +96,71 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                 })
                 .collect();
 
-            let tasks = process_infos.len() as u64 - kernel_threads;
-
-            let load_avg = if let Ok(current) = LoadAverage::current() {
-                LoadAvg::from_load_average(&current)
-            } else {
-                LoadAvg::default()
-            };
-
             process_infos.sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
 
-            let mut average_cpu = 0.0;
-            let mut cpu_percents = Vec::new();
-            if let Ok(current) = KernelStats::current() {
-                let metrics = CpuMetrics::from_cpu_time(&current.total);
-                let cpus: Vec<CpuMetrics> = current
-                    .cpu_time
+            Some(process_infos)
+        } else {
+            None
+        };
+
+        let tasks = if let Some(infos) = &processes {
+            infos.len() as u64 - kernel_threads
+        } else {
+            0
+        };
+
+        let load_avg = if let Ok(current) = LoadAverage::current() {
+            LoadAvg::from_load_average(&current)
+        } else {
+            LoadAvg::default()
+        };
+
+        let (average_cpu, cpu_percents) = if let Ok(current) = KernelStats::current() {
+            let metrics = CpuMetrics::from_cpu_time(&current.total);
+            let cpus: Vec<CpuMetrics> = current
+                .cpu_time
+                .iter()
+                .map(CpuMetrics::from_cpu_time)
+                .collect();
+
+            let ret = if cpu_total_prev.total_time() > 0 {
+                let average_cpu = metrics.cpu_usage(&cpu_total_prev);
+                let cpu_percents = cpus
                     .iter()
-                    .map(CpuMetrics::from_cpu_time)
+                    .zip(cpus_prev.iter())
+                    .map(|(n, o)| n.cpu_usage(o))
                     .collect();
 
-                if cpu_total_prev.total_time() > 0 {
-                    average_cpu = metrics.cpu_usage(&cpu_total_prev);
-                    cpu_percents = cpus
-                        .iter()
-                        .zip(cpus_prev.iter())
-                        .map(|(n, o)| n.cpu_usage(o))
-                        .collect();
-                }
+                (Some(average_cpu), Some(cpu_percents))
+            } else {
+                (None, None)
+            };
 
-                cpu_total_prev = metrics;
-                cpus_prev = cpus;
-            }
+            cpu_total_prev = metrics;
+            cpus_prev = cpus;
 
-            if tx
-                .blocking_send(Message {
-                    processes: process_infos,
-                    tasks,
-                    threads: threads as u64,
-                    kernel_threads,
-                    uptime: Duration::from_secs(uptime as u64),
-                    load_avg,
-                    average_cpu,
-                    cpu_percents,
-                })
-                .is_err()
-            {
-                break;
-            }
+            ret
+        } else {
+            (None, None)
+        };
 
-            running_processes.retain(|_, p| p.last_update.eq(&uptime));
+        if tx
+            .blocking_send(Message {
+                processes,
+                tasks,
+                threads: threads as u64,
+                kernel_threads,
+                uptime: Duration::from_secs(uptime as u64),
+                load_avg,
+                average_cpu,
+                cpu_percents,
+            })
+            .is_err()
+        {
+            break;
         }
+
+        running_processes.retain(|_, p| p.last_update.eq(&uptime));
 
         thread::sleep(Duration::from_millis(1_500));
     }
@@ -154,14 +168,14 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 
 #[derive(Debug, Default)]
 pub struct Message {
-    pub processes: Vec<ProcessInfo>,
+    pub processes: Option<Vec<ProcessInfo>>,
     pub tasks: u64,
     pub threads: u64,
     pub kernel_threads: u64,
     pub uptime: Duration,
     pub load_avg: LoadAvg,
-    pub average_cpu: f64,
-    pub cpu_percents: Vec<f64>,
+    pub average_cpu: Option<f64>,
+    pub cpu_percents: Option<Vec<f64>>,
 }
 
 #[derive(Debug)]

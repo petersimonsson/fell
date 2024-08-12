@@ -109,7 +109,7 @@ impl Widget for &App {
         };
 
         let vertical = Layout::vertical([
-            Constraint::Length(cpu_lines.len().min(4) as u16 + 1),
+            Constraint::Length(cpu_lines.len().max(4) as u16 + 1),
             Constraint::Fill(1),
         ]);
         let [info_area, process_area] = vertical.areas(area);

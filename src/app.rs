@@ -98,8 +98,8 @@ impl Widget for &App {
             .map(|v| {
                 let mut line_spans = Vec::new();
                 for (i, p) in v {
-                    line_spans.push(format!("{}: ", i).set_style(Style::default()));
-                    line_spans.push(format!("{:.1}% ", p).set_style(Style::default().bold()));
+                    line_spans.push(format!("{:3}: ", i).set_style(Style::default()));
+                    line_spans.push(format!("{:3.1}% ", p).set_style(Style::default().bold()));
                 }
 
                 Line::default().spans(line_spans)

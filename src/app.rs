@@ -210,12 +210,21 @@ impl Widget for &App {
                     } else {
                         Style::default().cyan()
                     };
-                    if let Some(user) = &p.user {
-                        max_user = max_user.max(user.len());
-                    }
+                    let user = if let Some(user) = p.user {
+                        let passwd = pwd::Passwd::from_uid(user);
+
+                        if let Some(passwd) = passwd {
+                            max_user = max_user.max(passwd.name.len());
+                            passwd.name
+                        } else {
+                            String::default()
+                        }
+                    } else {
+                        String::default()
+                    };
                     Row::new(vec![
                         p.pid.to_string(),
-                        p.user.clone().unwrap_or_default(),
+                        user,
                         p.name.clone(),
                         human_bytes::human_bytes(p.virtual_memory as f64),
                         human_bytes::human_bytes(p.memory as f64),

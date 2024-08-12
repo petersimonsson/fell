@@ -61,10 +61,11 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                             (0.0, 0, 0)
                         };
 
-                        let mut name = String::default();
-                        if let Ok(status) = p.status() {
-                            name = status.name;
-                        }
+                        let (name, user) = if let Ok(status) = p.status() {
+                            (status.name, Some(status.euid))
+                        } else {
+                            (String::default(), None)
+                        };
 
                         let (command, kernel_thread) = if let Ok(cmd) = p.cmdline() {
                             if cmd.is_empty() {
@@ -86,7 +87,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                             memory,
                             virtual_memory,
                             cpu_usage,
-                            user: None,
+                            user,
                             command,
                             kernel_thread,
                         })
@@ -185,7 +186,7 @@ pub struct ProcessInfo {
     pub memory: u64,
     pub virtual_memory: u64,
     pub cpu_usage: f64,
-    pub user: Option<String>,
+    pub user: Option<u32>,
     pub command: String,
     pub kernel_thread: bool,
 }

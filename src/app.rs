@@ -121,8 +121,7 @@ impl Widget for &App {
         ]);
         let [info_area, process_area] = vertical.areas(area);
 
-        let info_horiz =
-            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]);
+        let info_horiz = Layout::horizontal([Constraint::Fill(1), Constraint::Length(48)]);
         let [info_area, cpu_area] = info_horiz.areas(info_area);
 
         Paragraph::new(cpu_lines)

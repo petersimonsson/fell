@@ -211,11 +211,9 @@ impl Widget for &App {
                         Style::default().cyan()
                     };
                     let user = if let Some(user) = p.user {
-                        let passwd = pwd::Passwd::from_uid(user);
-
-                        if let Some(passwd) = passwd {
-                            max_user = max_user.max(passwd.name.len());
-                            passwd.name
+                        if let Some(name) = crate::utils::get_username_from_uid(user) {
+                            max_user = max_user.max(name.len());
+                            name
                         } else {
                             String::default()
                         }

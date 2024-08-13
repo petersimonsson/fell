@@ -3,6 +3,7 @@ use app::App;
 mod app;
 mod sysinfo_thread;
 mod tui;
+mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

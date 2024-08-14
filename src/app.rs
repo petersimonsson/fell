@@ -1,7 +1,6 @@
-use std::io;
+use std::{io, sync::mpsc};
 
-use crossterm::event::{Event, EventStream, KeyCode, KeyEvent, KeyEventKind};
-use futures::{select, FutureExt, StreamExt};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     layout::{Constraint, Layout},
     style::{Style, Styled, Stylize},
@@ -9,9 +8,8 @@ use ratatui::{
     widgets::{Block, Padding, Paragraph, Row, Table, Widget},
     Frame,
 };
-use tokio::{pin, sync::mpsc};
 
-use crate::{sysinfo_thread::System, tui::Tui};
+use crate::{sysinfo_thread::System, tui::Tui, Message};
 
 #[derive(Debug, Default)]
 pub struct App {
@@ -20,34 +18,20 @@ pub struct App {
 }
 
 impl App {
-    pub async fn run(
+    pub fn run(
         &mut self,
         terminal: &mut Tui,
-        mut thread_rx: mpsc::Receiver<System>,
+        thread_rx: mpsc::Receiver<Message>,
     ) -> io::Result<()> {
-        let mut ev_reader = EventStream::new();
-
         while !self.exit {
             terminal.draw(|frame| self.render_frame(frame))?;
 
-            let mut event = ev_reader.next().fuse();
-            let msg = thread_rx.recv().fuse();
-            pin!(msg);
-
-            select! {
-                maybe_msg = msg => {
-                    match maybe_msg {
-                        Some(msg) => self.handle_msg(msg),
-                        None => break,
-                    }
+            match thread_rx.recv() {
+                Ok(msg) => match msg {
+                    Message::SysInfo(system) => self.handle_msg(system),
+                    Message::Event(event) => self.handle_event(event),
                 },
-                maybe_event = event => {
-                    match maybe_event {
-                        Some(Ok(event)) => self.handle_event(event),
-                        Some(Err(_)) => {},
-                        None => break,
-                    }
-                }
+                Err(_) => break,
             }
         }
 

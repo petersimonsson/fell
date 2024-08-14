@@ -1,18 +1,18 @@
-use std::{collections::HashMap, io, thread, time::Duration};
+use std::{collections::HashMap, io, sync::mpsc, thread, time::Duration};
 
 use procfs::{process, CpuTime, Current, CurrentSI, KernelStats, LoadAverage, Uptime};
-use tokio::sync::mpsc;
 
-pub fn start_thread() -> io::Result<mpsc::Receiver<System>> {
-    let (tx, rx) = mpsc::channel(10);
+use crate::Message;
+
+pub fn start_thread(tx: mpsc::Sender<Message>) -> io::Result<()> {
     thread::Builder::new()
         .name("fell-sysinfo".to_string())
         .spawn(move || thread_main(tx))?;
 
-    Ok(rx)
+    Ok(())
 }
 
-fn thread_main(tx: mpsc::Sender<System>) {
+fn thread_main(tx: mpsc::Sender<Message>) {
     let page_size = procfs::page_size();
     let ticks_per_sec = procfs::ticks_per_second();
     let mut running_processes: HashMap<i32, ProcStats> = HashMap::new();
@@ -146,7 +146,7 @@ fn thread_main(tx: mpsc::Sender<System>) {
         };
 
         if tx
-            .blocking_send(System {
+            .send(Message::SysInfo(System {
                 processes,
                 tasks,
                 threads: threads as u64,
@@ -155,7 +155,7 @@ fn thread_main(tx: mpsc::Sender<System>) {
                 load_avg,
                 average_cpu,
                 cpu_percents,
-            })
+            }))
             .is_err()
         {
             break;

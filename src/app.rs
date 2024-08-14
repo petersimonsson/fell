@@ -1,4 +1,4 @@
-use std::{io, sync::mpsc};
+use std::{collections::HashMap, io, sync::mpsc};
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -15,6 +15,7 @@ use crate::{sysinfo_thread::System, tui::Tui, Message};
 pub struct App {
     exit: bool,
     current_data: System,
+    usernames: HashMap<u32, String>,
 }
 
 impl App {
@@ -38,7 +39,7 @@ impl App {
         Ok(())
     }
 
-    fn render_frame(&self, frame: &mut Frame) {
+    fn render_frame(&mut self, frame: &mut Frame) {
         frame.render_widget(self, frame.area());
     }
 
@@ -67,7 +68,7 @@ impl App {
     }
 }
 
-impl Widget for &App {
+impl Widget for &mut App {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
@@ -195,11 +196,15 @@ impl Widget for &App {
                         Style::default().cyan()
                     };
                     let user = if let Some(user) = p.user {
-                        if let Some(name) = crate::utils::get_username_from_uid(user) {
-                            max_user = max_user.max(name.len());
-                            name
+                        if let Some(name) = self.usernames.get(&user) {
+                            name.clone()
                         } else {
-                            String::default()
+                            let name =
+                                crate::utils::get_username_from_uid(user).unwrap_or_default();
+                            max_user = max_user.max(name.len());
+                            self.usernames.insert(user, name.clone());
+
+                            name
                         }
                     } else {
                         String::default()

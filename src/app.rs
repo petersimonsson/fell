@@ -11,19 +11,19 @@ use ratatui::{
 };
 use tokio::{pin, sync::mpsc};
 
-use crate::{sysinfo_thread::Message, tui::Tui};
+use crate::{sysinfo_thread::System, tui::Tui};
 
 #[derive(Debug, Default)]
 pub struct App {
     exit: bool,
-    current_data: Message,
+    current_data: System,
 }
 
 impl App {
     pub async fn run(
         &mut self,
         terminal: &mut Tui,
-        mut thread_rx: mpsc::Receiver<Message>,
+        mut thread_rx: mpsc::Receiver<System>,
     ) -> io::Result<()> {
         let mut ev_reader = EventStream::new();
 
@@ -78,7 +78,7 @@ impl App {
         self.exit = true;
     }
 
-    fn handle_msg(&mut self, msg: Message) {
+    fn handle_msg(&mut self, msg: System) {
         self.current_data = msg;
     }
 }

@@ -3,7 +3,7 @@ use std::{collections::HashMap, io, thread, time::Duration};
 use procfs::{process, CpuTime, Current, CurrentSI, KernelStats, LoadAverage, Uptime};
 use tokio::sync::mpsc;
 
-pub fn start_thread() -> io::Result<mpsc::Receiver<Message>> {
+pub fn start_thread() -> io::Result<mpsc::Receiver<System>> {
     let (tx, rx) = mpsc::channel(10);
     thread::Builder::new()
         .name("fell-sysinfo".to_string())
@@ -12,7 +12,7 @@ pub fn start_thread() -> io::Result<mpsc::Receiver<Message>> {
     Ok(rx)
 }
 
-fn thread_main(tx: mpsc::Sender<Message>) {
+fn thread_main(tx: mpsc::Sender<System>) {
     let page_size = procfs::page_size();
     let ticks_per_sec = procfs::ticks_per_second();
     let mut running_processes: HashMap<i32, ProcStats> = HashMap::new();
@@ -146,7 +146,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
         };
 
         if tx
-            .blocking_send(Message {
+            .blocking_send(System {
                 processes,
                 tasks,
                 threads: threads as u64,
@@ -168,7 +168,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 }
 
 #[derive(Debug, Default)]
-pub struct Message {
+pub struct System {
     pub processes: Option<Vec<ProcessInfo>>,
     pub tasks: u64,
     pub threads: u64,

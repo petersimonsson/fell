@@ -5,8 +5,11 @@ use crossterm::event::Event;
 use sysinfo_thread::System;
 
 mod app;
+mod cpu_info_widget;
 mod event;
+mod process_list;
 mod sysinfo_thread;
+mod system_info_widget;
 mod tui;
 mod utils;
 

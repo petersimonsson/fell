@@ -54,12 +54,12 @@ impl<'a> Widget for &mut ProcessList<'a> {
                         String::default()
                     };
                     Row::new(vec![
-                        p.pid.to_string(),
+                        format!("{:>7}", p.pid),
                         user,
                         p.name.clone(),
                         human_bytes::human_bytes(p.virtual_memory as f64),
                         human_bytes::human_bytes(p.memory as f64),
-                        format!("{:.1}%", p.cpu_usage),
+                        format!("{:>5.1}%", p.cpu_usage),
                         p.command.clone(),
                     ])
                     .style(style)
@@ -72,7 +72,7 @@ impl<'a> Widget for &mut ProcessList<'a> {
         max_user = max_user.min(10);
 
         let widths = [
-            Constraint::Max(6),
+            Constraint::Max(7),
             Constraint::Max(max_user as u16),
             Constraint::Max(16),
             Constraint::Length(10),

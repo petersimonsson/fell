@@ -34,10 +34,10 @@ impl<'a> Widget for &mut ProcessList<'a> {
             processes
                 .iter()
                 .map(|p| {
-                    let style = if p.kernel_thread {
-                        Style::default().gray()
-                    } else {
-                        Style::default().cyan()
+                    let style = match p.process_type {
+                        crate::sysinfo_thread::ProcessType::Process => Style::default().cyan(),
+                        crate::sysinfo_thread::ProcessType::KernelThread => Style::default().gray(),
+                        crate::sysinfo_thread::ProcessType::Thread => Style::default(),
                     };
                     let user = if let Some(user) = p.user {
                         if let Some(name) = self.usernames.get(&user) {

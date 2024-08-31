@@ -173,7 +173,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
         };
 
         let tasks = if let Some(infos) = &processes {
-            infos.len() as u64 - kernel_threads
+            infos.len() as u64 - kernel_threads - threads
         } else {
             0
         };

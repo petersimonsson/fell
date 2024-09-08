@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Block, Row, Table, Widget},
 };
 
-use crate::sysinfo_thread::System;
+use crate::{sysinfo_thread::System, utils::human_bytes};
 
 pub struct ProcessList<'a> {
     current_data: &'a System,
@@ -57,8 +57,8 @@ impl<'a> Widget for &mut ProcessList<'a> {
                         format!("{:>7}", p.pid),
                         user,
                         p.name.clone(),
-                        human_bytes::human_bytes(p.virtual_memory as f64),
-                        human_bytes::human_bytes(p.memory as f64),
+                        human_bytes(p.virtual_memory),
+                        human_bytes(p.memory),
                         format!("{:>5.1}%", p.cpu_usage),
                         p.command.clone(),
                     ])
@@ -74,9 +74,9 @@ impl<'a> Widget for &mut ProcessList<'a> {
         let widths = [
             Constraint::Max(7),
             Constraint::Max(max_user as u16),
-            Constraint::Max(16),
-            Constraint::Length(10),
-            Constraint::Length(10),
+            Constraint::Max(15),
+            Constraint::Length(8),
+            Constraint::Length(8),
             Constraint::Length(6),
             Constraint::Fill(1),
         ];

@@ -21,7 +21,6 @@ codegen-units = 1
 [dependencies]
 anyhow = "1.0"
 crossterm = { version = "0.28" }
-human_bytes = "0.4"
 libc = "0.2"
 procfs = "0.16"
 ratatui = "0.28"

@@ -40,3 +40,21 @@ pub fn human_duration(duration: Duration) -> String {
 
     format!("{days} {day}, {hours:02}:{mins:02}:{secs:02}")
 }
+
+pub fn human_bytes(bytes: u64) -> String {
+    if bytes > 1024 {
+        let (size, prefix) = if bytes > 1099511627776 {
+            (bytes as f64 / 1099511627776.0, 'T')
+        } else if bytes > 1073741824 {
+            (bytes as f64 / 1073741824.0, 'G')
+        } else if bytes > 1048576 {
+            (bytes as f64 / 1048576.0, 'M')
+        } else {
+            (bytes as f64 / 1024.0, 'k')
+        };
+
+        format!("{size:>7.2}{prefix}")
+    } else {
+        format!("{bytes:>7}")
+    }
+}

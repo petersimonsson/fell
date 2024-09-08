@@ -12,7 +12,7 @@ inherits = "dev"
 opt-level = 0
 
 [profile.release]
-debug = 0
+debug = false
 strip = "symbols"
 lto = true
 opt-level = 3

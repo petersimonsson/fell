@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, Paragraph, Widget},
 };
 
-use crate::sysinfo_thread::System;
+use crate::{sysinfo_thread::System, utils::human_duration};
 
 pub struct SystemInfoWidget<'a> {
     current_data: &'a System,
@@ -34,9 +34,7 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
         let info = vec![
             Line::default().spans(vec![
                 "Uptime: ".set_style(Style::default()),
-                humantime::format_duration(self.current_data.uptime)
-                    .to_string()
-                    .set_style(Style::default().bold()),
+                human_duration(self.current_data.uptime).set_style(Style::default().bold()),
             ]),
             Line::default().spans(vec![
                 "Average CPU: ".set_style(Style::default()),

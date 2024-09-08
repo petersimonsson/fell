@@ -22,7 +22,6 @@ codegen-units = 1
 anyhow = "1.0"
 crossterm = { version = "0.28" }
 human_bytes = "0.4"
-humantime = "2.1"
 libc = "0.2"
 procfs = "0.16"
 ratatui = "0.28"

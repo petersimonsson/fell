@@ -3,14 +3,6 @@ name = "fell"
 version = "0.1.0"
 edition = "2021"
 
-[profile.dev.package."*"]
-# Compile dependencies with optimizations on even in debug mode.
-opt-level = 3
-
-[profile.no-opt]
-inherits = "dev"
-opt-level = 0
-
 [profile.release]
 debug = false
 strip = "symbols"

@@ -34,135 +34,127 @@ fn thread_main(tx: mpsc::Sender<Message>) {
         let processes = if let Ok(processes) = process::all_processes() {
             let mut process_infos: Vec<ProcessInfo> = Vec::default();
 
-            for p in processes {
-                if let Ok(p) = p {
-                    let (cpu_usage, memory, virtual_memory) = if let Ok(stat) = p.stat() {
-                        let used_time = stat.stime + stat.utime;
-                        let old_stat = if let Some(stat) = procstats.get_mut(&p.pid) {
-                            stat
-                        } else {
-                            procstats.insert(p.pid, ProcStats::default());
+            for p in processes.flatten() {
+                let (cpu_usage, memory, virtual_memory) = if let Ok(stat) = p.stat() {
+                    let used_time = stat.stime + stat.utime;
+                    let old_stat = if let Some(stat) = procstats.get_mut(&p.pid) {
+                        stat
+                    } else {
+                        procstats.insert(p.pid, ProcStats::default());
 
-                            procstats.get_mut(&p.pid).unwrap()
+                        procstats.get_mut(&p.pid).unwrap()
+                    };
+
+                    let cpu_usage = if old_stat.last_update > 0.0 {
+                        let interval = (uptime - old_stat.last_update) * ticks_per_sec as f64;
+                        (used_time - old_stat.used_time) as f64 * 100.0 / interval
+                    } else {
+                        0.0
+                    };
+
+                    old_stat.last_update = uptime;
+                    old_stat.used_time = used_time;
+                    let memory = stat.rss * page_size;
+                    let virtual_memory = stat.vsize;
+                    (cpu_usage, memory, virtual_memory)
+                } else {
+                    (0.0, 0, 0)
+                };
+
+                let (name, user) = if let Some(status) = procstatuses.get_mut(&p.pid) {
+                    status.last_update = uptime;
+                    (status.name.clone(), Some(status.uid))
+                } else if let Ok(status) = p.status() {
+                    let stored = ProcStatus::new(uptime, status.name, status.euid);
+                    procstatuses.insert(p.pid, stored.clone());
+                    (stored.name, Some(stored.uid))
+                } else {
+                    (String::default(), None)
+                };
+
+                let (command, process_type) = if let Ok(cmd) = p.cmdline() {
+                    let process_type = if cmd.is_empty() {
+                        kernel_threads += 1;
+                        ProcessType::KernelThread
+                    } else {
+                        ProcessType::Process
+                    };
+
+                    (cmd.join(" "), process_type)
+                } else {
+                    (String::default(), ProcessType::Process)
+                };
+
+                if let Ok(tasks) = p.tasks() {
+                    for t in tasks.flatten() {
+                        if p.pid == t.tid {
+                            continue;
+                        }
+                        let (cpu_usage, memory, virtual_memory) = if let Ok(stat) = t.stat() {
+                            let used_time = stat.stime + stat.utime;
+                            let old_stat = if let Some(stat) = threadstats.get_mut(&(t.pid, t.tid))
+                            {
+                                stat
+                            } else {
+                                threadstats.insert((t.pid, t.tid), ProcStats::default());
+
+                                threadstats.get_mut(&(t.pid, t.tid)).unwrap()
+                            };
+
+                            let cpu_usage = if old_stat.last_update > 0.0 {
+                                let interval =
+                                    (uptime - old_stat.last_update) * ticks_per_sec as f64;
+                                (used_time - old_stat.used_time) as f64 * 100.0 / interval
+                            } else {
+                                0.0
+                            };
+
+                            old_stat.last_update = uptime;
+                            old_stat.used_time = used_time;
+                            let memory = stat.rss * page_size;
+                            let virtual_memory = stat.vsize;
+                            (cpu_usage, memory, virtual_memory)
+                        } else {
+                            (0.0, 0, 0)
                         };
 
-                        let cpu_usage = if old_stat.last_update > 0.0 {
-                            let interval = (uptime - old_stat.last_update) * ticks_per_sec as f64;
-                            (used_time - old_stat.used_time) as f64 * 100.0 / interval
-                        } else {
-                            0.0
-                        };
+                        let (name, user) =
+                            if let Some(status) = threadstatuses.get_mut(&(t.pid, t.tid)) {
+                                status.last_update = uptime;
+                                (status.name.clone(), Some(status.uid))
+                            } else if let Ok(status) = p.status() {
+                                let stored = ProcStatus::new(uptime, status.name, status.euid);
+                                threadstatuses.insert((t.pid, t.tid), stored.clone());
+                                (stored.name, Some(stored.uid))
+                            } else {
+                                (String::default(), None)
+                            };
 
-                        old_stat.last_update = uptime;
-                        old_stat.used_time = used_time;
-                        let memory = stat.rss * page_size;
-                        let virtual_memory = stat.vsize;
-                        (cpu_usage, memory, virtual_memory)
-                    } else {
-                        (0.0, 0, 0)
-                    };
+                        threads += 1;
 
-                    let (name, user) = if let Some(status) = procstatuses.get_mut(&p.pid) {
-                        status.last_update = uptime;
-                        (status.name.clone(), Some(status.uid))
-                    } else if let Ok(status) = p.status() {
-                        let stored = ProcStatus::new(uptime, status.name, status.euid);
-                        procstatuses.insert(p.pid, stored.clone());
-                        (stored.name, Some(stored.uid))
-                    } else {
-                        (String::default(), None)
-                    };
-
-                    let (command, process_type) = if let Ok(cmd) = p.cmdline() {
-                        let process_type;
-                        if cmd.is_empty() {
-                            kernel_threads += 1;
-                            process_type = ProcessType::KernelThread;
-                        } else {
-                            process_type = ProcessType::Process;
-                        }
-
-                        (cmd.join(" "), process_type)
-                    } else {
-                        (String::default(), ProcessType::Process)
-                    };
-
-                    if let Ok(tasks) = p.tasks() {
-                        for t in tasks {
-                            if let Ok(t) = t {
-                                if p.pid == t.tid {
-                                    continue;
-                                }
-                                let (cpu_usage, memory, virtual_memory) = if let Ok(stat) = t.stat()
-                                {
-                                    let used_time = stat.stime + stat.utime;
-                                    let old_stat = if let Some(stat) =
-                                        threadstats.get_mut(&(t.pid, t.tid))
-                                    {
-                                        stat
-                                    } else {
-                                        threadstats.insert((t.pid, t.tid), ProcStats::default());
-
-                                        threadstats.get_mut(&(t.pid, t.tid)).unwrap()
-                                    };
-
-                                    let cpu_usage = if old_stat.last_update > 0.0 {
-                                        let interval =
-                                            (uptime - old_stat.last_update) * ticks_per_sec as f64;
-                                        (used_time - old_stat.used_time) as f64 * 100.0 / interval
-                                    } else {
-                                        0.0
-                                    };
-
-                                    old_stat.last_update = uptime;
-                                    old_stat.used_time = used_time;
-                                    let memory = stat.rss * page_size;
-                                    let virtual_memory = stat.vsize;
-                                    (cpu_usage, memory, virtual_memory)
-                                } else {
-                                    (0.0, 0, 0)
-                                };
-
-                                let (name, user) = if let Some(status) =
-                                    threadstatuses.get_mut(&(t.pid, t.tid))
-                                {
-                                    status.last_update = uptime;
-                                    (status.name.clone(), Some(status.uid))
-                                } else if let Ok(status) = p.status() {
-                                    let stored = ProcStatus::new(uptime, status.name, status.euid);
-                                    threadstatuses.insert((t.pid, t.tid), stored.clone());
-                                    (stored.name, Some(stored.uid))
-                                } else {
-                                    (String::default(), None)
-                                };
-
-                                threads += 1;
-
-                                process_infos.push(ProcessInfo {
-                                    pid: t.tid,
-                                    name,
-                                    memory,
-                                    virtual_memory,
-                                    cpu_usage,
-                                    user,
-                                    command: String::default(),
-                                    process_type: ProcessType::Thread,
-                                });
-                            }
-                        }
+                        process_infos.push(ProcessInfo {
+                            pid: t.tid,
+                            name,
+                            memory,
+                            virtual_memory,
+                            cpu_usage,
+                            user,
+                            command: String::default(),
+                            process_type: ProcessType::Thread,
+                        });
                     }
-
-                    process_infos.push(ProcessInfo {
-                        pid: p.pid(),
-                        name,
-                        memory,
-                        virtual_memory,
-                        cpu_usage,
-                        user,
-                        command,
-                        process_type,
-                    });
                 }
+
+                process_infos.push(ProcessInfo {
+                    pid: p.pid(),
+                    name,
+                    memory,
+                    virtual_memory,
+                    cpu_usage,
+                    user,
+                    command,
+                    process_type,
+                });
             }
 
             process_infos.sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
@@ -217,7 +209,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
             .send(Message::SysInfo(System {
                 processes,
                 tasks,
-                threads: threads as u64,
+                threads,
                 kernel_threads,
                 uptime: Duration::from_secs(uptime as u64),
                 load_avg,

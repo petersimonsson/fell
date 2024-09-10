@@ -12,6 +12,7 @@ use crate::{sysinfo_thread::System, utils::human_bytes};
 pub struct ProcessList<'a> {
     current_data: &'a System,
     usernames: HashMap<u32, String>,
+    show_kernel_threads: bool,
 }
 
 impl<'a> ProcessList<'a> {
@@ -19,7 +20,14 @@ impl<'a> ProcessList<'a> {
         ProcessList {
             current_data: data,
             usernames: HashMap::default(),
+            show_kernel_threads: false,
         }
+    }
+
+    pub fn show_kernel_threads(mut self, show: bool) -> Self {
+        self.show_kernel_threads = show;
+
+        self
     }
 }
 
@@ -33,10 +41,15 @@ impl<'a> Widget for &mut ProcessList<'a> {
         let rows = if let Some(processes) = &self.current_data.processes {
             processes
                 .iter()
-                .map(|p| {
+                .filter_map(|p| {
                     let style = match p.process_type {
                         crate::sysinfo_thread::ProcessType::Process => Style::default().cyan(),
-                        crate::sysinfo_thread::ProcessType::KernelThread => Style::default().gray(),
+                        crate::sysinfo_thread::ProcessType::KernelThread => {
+                            if !self.show_kernel_threads {
+                                return None;
+                            }
+                            Style::default().gray()
+                        }
                         crate::sysinfo_thread::ProcessType::Thread => Style::default(),
                     };
                     let user = if let Some(user) = p.user {
@@ -53,16 +66,18 @@ impl<'a> Widget for &mut ProcessList<'a> {
                     } else {
                         String::default()
                     };
-                    Row::new(vec![
-                        format!("{:>7}", p.pid),
-                        user,
-                        p.name.clone(),
-                        human_bytes(p.virtual_memory),
-                        human_bytes(p.memory),
-                        format!("{:>5.1}%", p.cpu_usage),
-                        p.command.clone(),
-                    ])
-                    .style(style)
+                    Some(
+                        Row::new(vec![
+                            format!("{:>7}", p.pid),
+                            user,
+                            p.name.clone(),
+                            human_bytes(p.virtual_memory),
+                            human_bytes(p.memory),
+                            format!("{:>5.1}%", p.cpu_usage),
+                            p.command.clone(),
+                        ])
+                        .style(style),
+                    )
                 })
                 .collect()
         } else {

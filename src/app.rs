@@ -15,6 +15,7 @@ use crate::{
 #[derive(Debug, Default)]
 pub struct App {
     exit: bool,
+    show_kernel_threads: bool,
     current_data: System,
 }
 
@@ -55,6 +56,7 @@ impl App {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
+            KeyCode::Char('k') => self.toggle_kernel_threads(),
             _ => {}
         }
     }
@@ -65,6 +67,10 @@ impl App {
 
     fn handle_msg(&mut self, msg: System) {
         self.current_data = msg;
+    }
+
+    fn toggle_kernel_threads(&mut self) {
+        self.show_kernel_threads = !self.show_kernel_threads;
     }
 }
 
@@ -86,6 +92,8 @@ impl Widget for &mut App {
 
         SystemInfoWidget::new(&self.current_data).render(info_area, buf);
         cpu_info.render(cpu_area, buf);
-        ProcessList::new(&self.current_data).render(process_area, buf);
+        ProcessList::new(&self.current_data)
+            .show_kernel_threads(self.show_kernel_threads)
+            .render(process_area, buf);
     }
 }

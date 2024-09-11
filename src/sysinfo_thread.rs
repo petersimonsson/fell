@@ -17,8 +17,6 @@ fn thread_main(tx: mpsc::Sender<Message>) {
     let ticks_per_sec = procfs::ticks_per_second();
     let mut procstats: HashMap<i32, ProcStats> = HashMap::new();
     let mut threadstats: HashMap<(i32, i32), ProcStats> = HashMap::new();
-    let mut procstatuses: HashMap<i32, ProcStatus> = HashMap::new();
-    let mut threadstatuses: HashMap<(i32, i32), ProcStatus> = HashMap::new();
     let mut cpu_total_prev = CpuMetrics::default();
     let mut cpus_prev: Vec<CpuMetrics> = Vec::new();
 
@@ -35,7 +33,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
             let mut process_infos: Vec<ProcessInfo> = Vec::default();
 
             for p in processes.flatten() {
-                let (cpu_usage, memory, virtual_memory) = if let Ok(stat) = p.stat() {
+                let (name, cpu_usage, memory, virtual_memory) = if let Ok(stat) = p.stat() {
                     let used_time = stat.stime + stat.utime;
                     let old_stat = if let Some(stat) = procstats.get_mut(&p.pid) {
                         stat
@@ -56,20 +54,9 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                     old_stat.used_time = used_time;
                     let memory = stat.rss * page_size;
                     let virtual_memory = stat.vsize;
-                    (cpu_usage, memory, virtual_memory)
+                    (stat.comm, cpu_usage, memory, virtual_memory)
                 } else {
-                    (0.0, 0, 0)
-                };
-
-                let (name, user) = if let Some(status) = procstatuses.get_mut(&p.pid) {
-                    status.last_update = uptime;
-                    (status.name.clone(), Some(status.uid))
-                } else if let Ok(status) = p.status() {
-                    let stored = ProcStatus::new(uptime, status.name, status.euid);
-                    procstatuses.insert(p.pid, stored.clone());
-                    (stored.name, Some(stored.uid))
-                } else {
-                    (String::default(), None)
+                    (String::default(), 0.0, 0, 0)
                 };
 
                 let (command, process_type) = if let Ok(cmd) = p.cmdline() {
@@ -90,7 +77,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                         if p.pid == t.tid {
                             continue;
                         }
-                        let (cpu_usage, memory, virtual_memory) = if let Ok(stat) = t.stat() {
+                        let (name, cpu_usage, memory, virtual_memory) = if let Ok(stat) = t.stat() {
                             let used_time = stat.stime + stat.utime;
                             let old_stat = if let Some(stat) = threadstats.get_mut(&(t.pid, t.tid))
                             {
@@ -113,22 +100,10 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                             old_stat.used_time = used_time;
                             let memory = stat.rss * page_size;
                             let virtual_memory = stat.vsize;
-                            (cpu_usage, memory, virtual_memory)
+                            (stat.comm, cpu_usage, memory, virtual_memory)
                         } else {
-                            (0.0, 0, 0)
+                            (String::default(), 0.0, 0, 0)
                         };
-
-                        let (name, user) =
-                            if let Some(status) = threadstatuses.get_mut(&(t.pid, t.tid)) {
-                                status.last_update = uptime;
-                                (status.name.clone(), Some(status.uid))
-                            } else if let Ok(status) = p.status() {
-                                let stored = ProcStatus::new(uptime, status.name, status.euid);
-                                threadstatuses.insert((t.pid, t.tid), stored.clone());
-                                (stored.name, Some(stored.uid))
-                            } else {
-                                (String::default(), None)
-                            };
 
                         threads += 1;
 
@@ -138,7 +113,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                             memory,
                             virtual_memory,
                             cpu_usage,
-                            user,
+                            user: p.uid().ok(),
                             command: String::default(),
                             process_type: ProcessType::Thread,
                         });
@@ -151,7 +126,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                     memory,
                     virtual_memory,
                     cpu_usage,
-                    user,
+                    user: p.uid().ok(),
                     command,
                     process_type,
                 });
@@ -222,7 +197,6 @@ fn thread_main(tx: mpsc::Sender<Message>) {
         }
 
         procstats.retain(|_, p| p.last_update.eq(&uptime));
-        procstatuses.retain(|_, p| p.last_update.eq(&uptime));
 
         thread::sleep(Duration::from_millis(1_500));
     }
@@ -263,23 +237,6 @@ pub struct ProcessInfo {
 struct ProcStats {
     last_update: f64,
     used_time: u64,
-}
-
-#[derive(Debug, Default, Clone)]
-struct ProcStatus {
-    last_update: f64,
-    uid: u32,
-    name: String,
-}
-
-impl ProcStatus {
-    fn new(last_update: f64, name: String, uid: u32) -> Self {
-        ProcStatus {
-            last_update,
-            uid,
-            name,
-        }
-    }
 }
 
 #[derive(Debug, Default)]

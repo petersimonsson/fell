@@ -16,7 +16,6 @@ fn thread_main(tx: mpsc::Sender<Message>) {
     let page_size = procfs::page_size();
     let ticks_per_sec = procfs::ticks_per_second();
     let mut procstats: HashMap<i32, ProcStats> = HashMap::new();
-    let mut threadstats: HashMap<(i32, i32), ProcStats> = HashMap::new();
     let mut cpu_total_prev = CpuMetrics::default();
     let mut cpus_prev: Vec<CpuMetrics> = Vec::new();
 
@@ -81,13 +80,12 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                         }
                         let (name, cpu_usage, memory, virtual_memory) = if let Ok(stat) = t.stat() {
                             let used_time = stat.stime + stat.utime;
-                            let old_stat = if let Some(stat) = threadstats.get_mut(&(t.pid, t.tid))
-                            {
+                            let old_stat = if let Some(stat) = procstats.get_mut(&t.tid) {
                                 stat
                             } else {
-                                threadstats.insert((t.pid, t.tid), ProcStats::default());
+                                procstats.insert(t.tid, ProcStats::default());
 
-                                threadstats.get_mut(&(t.pid, t.tid)).unwrap()
+                                procstats.get_mut(&t.tid).unwrap()
                             };
 
                             let cpu_usage = if old_stat.last_update > 0.0 {

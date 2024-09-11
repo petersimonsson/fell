@@ -56,7 +56,7 @@ impl App {
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Char('q') => self.exit(),
+            KeyCode::Char('q') | KeyCode::Esc => self.exit(),
             KeyCode::Char('k') => self.toggle_kernel_threads(),
             KeyCode::Char('t') => self.toggle_threads(),
             _ => {}

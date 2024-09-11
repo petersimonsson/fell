@@ -50,6 +50,8 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                         0.0
                     };
 
+                    threads += stat.num_threads - 1;
+
                     old_stat.last_update = uptime;
                     old_stat.used_time = used_time;
                     let memory = stat.rss * page_size;
@@ -105,8 +107,6 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                             (String::default(), 0.0, 0, 0)
                         };
 
-                        threads += 1;
-
                         process_infos.push(ProcessInfo {
                             pid: t.tid,
                             name,
@@ -140,7 +140,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
         };
 
         let tasks = if let Some(infos) = &processes {
-            infos.len() as u64 - kernel_threads - threads
+            infos.len() as i64 - kernel_threads - threads
         } else {
             0
         };
@@ -205,9 +205,9 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 #[derive(Debug, Default)]
 pub struct System {
     pub processes: Option<Vec<ProcessInfo>>,
-    pub tasks: u64,
-    pub threads: u64,
-    pub kernel_threads: u64,
+    pub tasks: i64,
+    pub threads: i64,
+    pub kernel_threads: i64,
     pub uptime: Duration,
     pub load_avg: LoadAvg,
     pub average_cpu: Option<f64>,

@@ -1,6 +1,9 @@
 use std::{collections::HashMap, io, sync::mpsc, thread, time::Duration};
 
-use procfs::{process, CpuTime, Current, CurrentSI, KernelStats, LoadAverage, Uptime};
+use procfs::{
+    process::{self, Stat},
+    CpuTime, Current, CurrentSI, KernelStats, LoadAverage, Uptime,
+};
 
 use crate::Message;
 
@@ -33,26 +36,10 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 
             for p in processes.flatten() {
                 let (name, cpu_usage, memory, virtual_memory) = if let Ok(stat) = p.stat() {
-                    let used_time = stat.stime + stat.utime;
-                    let old_stat = if let Some(stat) = procstats.get_mut(&p.pid) {
-                        stat
-                    } else {
-                        procstats.insert(p.pid, ProcStats::default());
-
-                        procstats.get_mut(&p.pid).unwrap()
-                    };
-
-                    let cpu_usage = if old_stat.last_update > 0.0 {
-                        let interval = (uptime - old_stat.last_update) * ticks_per_sec as f64;
-                        (used_time - old_stat.used_time) as f64 * 100.0 / interval
-                    } else {
-                        0.0
-                    };
+                    let cpu_usage = procstats.cpu_usage(p.pid, &stat, uptime, ticks_per_sec);
 
                     threads += stat.num_threads - 1;
 
-                    old_stat.last_update = uptime;
-                    old_stat.used_time = used_time;
                     let memory = stat.rss * page_size;
                     let virtual_memory = stat.vsize;
                     (stat.comm, cpu_usage, memory, virtual_memory)
@@ -79,25 +66,8 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                             continue;
                         }
                         let (name, cpu_usage, memory, virtual_memory) = if let Ok(stat) = t.stat() {
-                            let used_time = stat.stime + stat.utime;
-                            let old_stat = if let Some(stat) = procstats.get_mut(&t.tid) {
-                                stat
-                            } else {
-                                procstats.insert(t.tid, ProcStats::default());
-
-                                procstats.get_mut(&t.tid).unwrap()
-                            };
-
-                            let cpu_usage = if old_stat.last_update > 0.0 {
-                                let interval =
-                                    (uptime - old_stat.last_update) * ticks_per_sec as f64;
-                                (used_time - old_stat.used_time) as f64 * 100.0 / interval
-                            } else {
-                                0.0
-                            };
-
-                            old_stat.last_update = uptime;
-                            old_stat.used_time = used_time;
+                            let cpu_usage =
+                                procstats.cpu_usage(t.tid, &stat, uptime, ticks_per_sec);
                             let memory = stat.rss * page_size;
                             let virtual_memory = stat.vsize;
                             (stat.comm, cpu_usage, memory, virtual_memory)
@@ -304,5 +274,35 @@ impl CpuMetrics {
     fn cpu_usage(&self, old: &CpuMetrics) -> f64 {
         (self.work_time() - old.work_time()) as f64 * 100.0
             / (self.total_time() - old.total_time()) as f64
+    }
+}
+
+trait ProcStatsHashMap {
+    fn cpu_usage(&mut self, pid: i32, stat: &Stat, uptime: f64, ticks_per_sec: u64) -> f64;
+}
+
+impl ProcStatsHashMap for HashMap<i32, ProcStats> {
+    fn cpu_usage(&mut self, pid: i32, stat: &Stat, uptime: f64, ticks_per_sec: u64) -> f64 {
+        let used_time = stat.stime + stat.utime;
+        let old_stat = if let Some(stat) = self.get_mut(&pid) {
+            stat
+        } else {
+            self.insert(pid, ProcStats::default());
+
+            self.get_mut(&pid).unwrap()
+        };
+
+        let cpu_usage = if old_stat.last_update > 0.0 {
+            let interval = (uptime - old_stat.last_update) * ticks_per_sec as f64;
+            let time_diff = used_time - old_stat.used_time;
+            time_diff as f64 * 100.0 / interval
+        } else {
+            0.0
+        };
+
+        old_stat.last_update = uptime;
+        old_stat.used_time = used_time;
+
+        cpu_usage
     }
 }

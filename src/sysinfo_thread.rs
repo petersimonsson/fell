@@ -81,6 +81,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                         } else {
                             String::default()
                         };
+
                         process_infos.push(ProcessInfo {
                             pid: t.tid,
                             name,
@@ -108,15 +109,13 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                 });
             }
 
-            process_infos.sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
-
-            Some(process_infos)
+            process_infos
         } else {
-            None
+            Vec::default()
         };
 
-        let tasks = if let Some(infos) = &processes {
-            infos.len() as i64 - kernel_threads - threads
+        let tasks = if !processes.is_empty() {
+            processes.len() as i64 - kernel_threads - threads
         } else {
             0
         };
@@ -180,7 +179,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 
 #[derive(Debug, Default)]
 pub struct System {
-    pub processes: Option<Vec<ProcessInfo>>,
+    pub processes: Vec<ProcessInfo>,
     pub tasks: i64,
     pub threads: i64,
     pub kernel_threads: i64,

@@ -46,57 +46,54 @@ impl<'a> Widget for &mut ProcessList<'a> {
     {
         let mut max_user = 0;
 
-        let rows = if let Some(processes) = &self.current_data.processes {
-            processes
-                .iter()
-                .filter_map(|p| {
-                    let style = match p.process_type {
-                        crate::sysinfo_thread::ProcessType::Process => Style::default().cyan(),
-                        crate::sysinfo_thread::ProcessType::KernelThread => {
-                            if !self.show_kernel_threads {
-                                return None;
-                            }
-                            Style::default().gray()
+        let rows: Vec<Row> = self
+            .current_data
+            .processes
+            .iter()
+            .filter_map(|p| {
+                let style = match p.process_type {
+                    crate::sysinfo_thread::ProcessType::Process => Style::default().cyan(),
+                    crate::sysinfo_thread::ProcessType::KernelThread => {
+                        if !self.show_kernel_threads {
+                            return None;
                         }
-                        crate::sysinfo_thread::ProcessType::Thread => {
-                            if !self.show_threads {
-                                return None;
-                            }
-                            Style::default()
+                        Style::default().gray()
+                    }
+                    crate::sysinfo_thread::ProcessType::Thread => {
+                        if !self.show_threads {
+                            return None;
                         }
-                    };
-                    let user = if let Some(user) = p.user {
-                        if let Some(name) = self.usernames.get(&user) {
-                            name.clone()
-                        } else {
-                            let name =
-                                crate::utils::get_username_from_uid(user).unwrap_or_default();
-                            max_user = max_user.max(name.len());
-                            self.usernames.insert(user, name.clone());
-
-                            name
-                        }
+                        Style::default()
+                    }
+                };
+                let user = if let Some(user) = p.user {
+                    if let Some(name) = self.usernames.get(&user) {
+                        name.clone()
                     } else {
-                        String::default()
-                    };
-                    Some(
-                        Row::new(vec![
-                            format!("{:>7}", p.pid),
-                            user,
-                            p.name.clone(),
-                            human_bytes(p.virtual_memory),
-                            human_bytes(p.memory),
-                            p.state.to_string(),
-                            format!("{:>5.1}%", p.cpu_usage),
-                            p.command.clone(),
-                        ])
-                        .style(style),
-                    )
-                })
-                .collect()
-        } else {
-            Vec::default()
-        };
+                        let name = crate::utils::get_username_from_uid(user).unwrap_or_default();
+                        max_user = max_user.max(name.len());
+                        self.usernames.insert(user, name.clone());
+
+                        name
+                    }
+                } else {
+                    String::default()
+                };
+                Some(
+                    Row::new(vec![
+                        format!("{:>7}", p.pid),
+                        user,
+                        p.name.clone(),
+                        human_bytes(p.virtual_memory),
+                        human_bytes(p.memory),
+                        p.state.to_string(),
+                        format!("{:>5.1}%", p.cpu_usage),
+                        p.command.clone(),
+                    ])
+                    .style(style),
+                )
+            })
+            .collect();
 
         max_user = max_user.min(10);
 

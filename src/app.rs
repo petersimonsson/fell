@@ -69,6 +69,9 @@ impl App {
 
     fn handle_msg(&mut self, msg: System) {
         self.current_data = msg;
+        self.current_data
+            .processes
+            .sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
     }
 
     fn toggle_kernel_threads(&mut self) {

@@ -91,7 +91,7 @@ impl Widget for &mut App {
         let mut cpu_info = CpuInfoWidget::new(&self.current_data);
 
         let vertical = Layout::vertical([
-            Constraint::Length(cpu_info.row_count().max(4) + 2),
+            Constraint::Length(cpu_info.row_count().max(5) + 2),
             Constraint::Fill(1),
         ]);
         let [info_area, process_area] = vertical.areas(area);

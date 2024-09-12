@@ -6,7 +6,10 @@ use ratatui::{
     widgets::{Block, Paragraph, Widget},
 };
 
-use crate::{sysinfo_thread::System, utils::human_duration};
+use crate::{
+    sysinfo_thread::System,
+    utils::{human_bytes, human_duration},
+};
 
 pub struct SystemInfoWidget<'a> {
     current_data: &'a System,
@@ -59,6 +62,22 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
                     .fifteen
                     .to_string()
                     .set_style(Style::default().bold()),
+            ]),
+            Line::default().spans(vec![
+                "Memory: ".into(),
+                format!(
+                    "{}/{}",
+                    human_bytes(self.current_data.mem_used, false),
+                    human_bytes(self.current_data.mem_total, false)
+                )
+                .set_style(Style::default().bold()),
+                " Swap: ".into(),
+                format!(
+                    "{}/{}",
+                    human_bytes(self.current_data.swap_used, false),
+                    human_bytes(self.current_data.swap_total, false)
+                )
+                .set_style(Style::default().bold()),
             ]),
             Line::default().spans(vec![
                 "Tasks: ".set_style(Style::default().cyan()),

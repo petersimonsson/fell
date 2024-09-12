@@ -2,7 +2,7 @@ use std::{collections::HashMap, io, sync::mpsc, thread, time::Duration};
 
 use procfs::{
     process::{self, Stat},
-    CpuTime, Current, CurrentSI, KernelStats, LoadAverage, Uptime,
+    CpuTime, Current, CurrentSI, KernelStats, LoadAverage, Meminfo, Uptime,
 };
 
 use crate::Message;
@@ -155,6 +155,17 @@ fn thread_main(tx: mpsc::Sender<Message>) {
             (None, None)
         };
 
+        let (mem_total, mem_used, swap_total, swap_used) = if let Ok(meminfo) = Meminfo::current() {
+            (
+                meminfo.mem_total,
+                meminfo.mem_total - meminfo.mem_free,
+                meminfo.swap_total,
+                meminfo.swap_total - meminfo.swap_free,
+            )
+        } else {
+            (0, 0, 0, 0)
+        };
+
         if tx
             .send(Message::SysInfo(System {
                 processes,
@@ -165,6 +176,10 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                 load_avg,
                 average_cpu,
                 cpu_percents,
+                mem_total,
+                mem_used,
+                swap_total,
+                swap_used,
             }))
             .is_err()
         {
@@ -187,6 +202,10 @@ pub struct System {
     pub load_avg: LoadAvg,
     pub average_cpu: Option<f64>,
     pub cpu_percents: Option<Vec<f64>>,
+    pub mem_total: u64,
+    pub mem_used: u64,
+    pub swap_total: u64,
+    pub swap_used: u64,
 }
 
 #[derive(Debug)]

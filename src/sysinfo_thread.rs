@@ -35,16 +35,16 @@ fn thread_main(tx: mpsc::Sender<Message>) {
             let mut process_infos: Vec<ProcessInfo> = Vec::default();
 
             for p in processes.flatten() {
-                let (name, cpu_usage, memory, virtual_memory) = if let Ok(stat) = p.stat() {
+                let (name, cpu_usage, memory, virtual_memory, state) = if let Ok(stat) = p.stat() {
                     let cpu_usage = procstats.cpu_usage(p.pid, &stat, uptime, ticks_per_sec);
 
                     threads += stat.num_threads - 1;
 
                     let memory = stat.rss * page_size;
                     let virtual_memory = stat.vsize;
-                    (stat.comm, cpu_usage, memory, virtual_memory)
+                    (stat.comm, cpu_usage, memory, virtual_memory, stat.state)
                 } else {
-                    (String::default(), 0.0, 0, 0)
+                    (String::default(), 0.0, 0, 0, ' ')
                 };
 
                 let (command, process_type) = if let Ok(cmd) = p.cmdline() {
@@ -65,15 +65,16 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                         if p.pid == t.tid {
                             continue;
                         }
-                        let (name, cpu_usage, memory, virtual_memory) = if let Ok(stat) = t.stat() {
-                            let cpu_usage =
-                                procstats.cpu_usage(t.tid, &stat, uptime, ticks_per_sec);
-                            let memory = stat.rss * page_size;
-                            let virtual_memory = stat.vsize;
-                            (stat.comm, cpu_usage, memory, virtual_memory)
-                        } else {
-                            (String::default(), 0.0, 0, 0)
-                        };
+                        let (name, cpu_usage, memory, virtual_memory, state) =
+                            if let Ok(stat) = t.stat() {
+                                let cpu_usage =
+                                    procstats.cpu_usage(t.tid, &stat, uptime, ticks_per_sec);
+                                let memory = stat.rss * page_size;
+                                let virtual_memory = stat.vsize;
+                                (stat.comm, cpu_usage, memory, virtual_memory, stat.state)
+                            } else {
+                                (String::default(), 0.0, 0, 0, ' ')
+                            };
 
                         process_infos.push(ProcessInfo {
                             pid: t.tid,
@@ -84,6 +85,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                             user: p.uid().ok(),
                             command: String::default(),
                             process_type: ProcessType::Thread,
+                            state,
                         });
                     }
                 }
@@ -97,6 +99,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                     user: p.uid().ok(),
                     command,
                     process_type,
+                    state,
                 });
             }
 
@@ -199,6 +202,7 @@ pub struct ProcessInfo {
     pub user: Option<u32>,
     pub command: String,
     pub process_type: ProcessType,
+    pub state: char,
 }
 
 #[derive(Debug, Default)]

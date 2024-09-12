@@ -86,6 +86,7 @@ impl<'a> Widget for &mut ProcessList<'a> {
                             p.name.clone(),
                             human_bytes(p.virtual_memory),
                             human_bytes(p.memory),
+                            p.state.to_string(),
                             format!("{:>5.1}%", p.cpu_usage),
                             p.command.clone(),
                         ])
@@ -105,6 +106,7 @@ impl<'a> Widget for &mut ProcessList<'a> {
             Constraint::Max(15),
             Constraint::Length(8),
             Constraint::Length(8),
+            Constraint::Length(1),
             Constraint::Length(6),
             Constraint::Fill(1),
         ];
@@ -113,7 +115,7 @@ impl<'a> Widget for &mut ProcessList<'a> {
             .column_spacing(1)
             .header(
                 Row::new(vec![
-                    "PID", "User", "Name", "Virt", "Res", "CPU%", "Command",
+                    "PID", "User", "Name", "Virt", "Res", "S", "CPU%", "Command",
                 ])
                 .style(Style::new().bold()),
             )

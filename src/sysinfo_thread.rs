@@ -76,6 +76,11 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                                 (String::default(), 0.0, 0, 0, ' ')
                             };
 
+                        let command = if let Ok(cmd) = p.cmdline() {
+                            cmd.join(" ")
+                        } else {
+                            String::default()
+                        };
                         process_infos.push(ProcessInfo {
                             pid: t.tid,
                             name,
@@ -83,7 +88,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
                             virtual_memory,
                             cpu_usage,
                             user: p.uid().ok(),
-                            command: String::default(),
+                            command,
                             process_type: ProcessType::Thread,
                             state,
                         });

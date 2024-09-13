@@ -77,49 +77,47 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
                         process_type,
                         state,
                     });
-                } else {
-                    if let Ok(tasks) = p.tasks() {
-                        for t in tasks.flatten() {
-                            let (name, cpu_usage, memory, virtual_memory, state) =
-                                if let Ok(stat) = t.stat() {
-                                    let cpu_usage =
-                                        procstats.cpu_usage(t.tid, &stat, uptime, ticks_per_sec);
-                                    let memory = stat.rss * page_size;
-                                    let virtual_memory = stat.vsize;
-                                    (stat.comm, cpu_usage, memory, virtual_memory, stat.state)
-                                } else {
-                                    (String::default(), 0.0, 0, 0, ' ')
-                                };
-
-                            let (command, process_type) = if let Ok(cmd) = p.cmdline() {
-                                let process_type = if cmd.is_empty() {
-                                    kernel_threads += 1;
-                                    ProcessType::KernelThread
-                                } else if p.pid == t.tid {
-                                    process_tasks += 1;
-                                    ProcessType::Process
-                                } else {
-                                    threads += 1;
-                                    ProcessType::Thread
-                                };
-
-                                (cmd.join(" "), process_type)
+                } else if let Ok(tasks) = p.tasks() {
+                    for t in tasks.flatten() {
+                        let (name, cpu_usage, memory, virtual_memory, state) =
+                            if let Ok(stat) = t.stat() {
+                                let cpu_usage =
+                                    procstats.cpu_usage(t.tid, &stat, uptime, ticks_per_sec);
+                                let memory = stat.rss * page_size;
+                                let virtual_memory = stat.vsize;
+                                (stat.comm, cpu_usage, memory, virtual_memory, stat.state)
                             } else {
-                                (String::default(), ProcessType::Process)
+                                (String::default(), 0.0, 0, 0, ' ')
                             };
 
-                            process_infos.push(ProcessInfo {
-                                pid: t.tid,
-                                name,
-                                memory,
-                                virtual_memory,
-                                cpu_usage,
-                                user: p.uid().ok(),
-                                command,
-                                process_type,
-                                state,
-                            });
-                        }
+                        let (command, process_type) = if let Ok(cmd) = p.cmdline() {
+                            let process_type = if cmd.is_empty() {
+                                kernel_threads += 1;
+                                ProcessType::KernelThread
+                            } else if p.pid == t.tid {
+                                process_tasks += 1;
+                                ProcessType::Process
+                            } else {
+                                threads += 1;
+                                ProcessType::Thread
+                            };
+
+                            (cmd.join(" "), process_type)
+                        } else {
+                            (String::default(), ProcessType::Process)
+                        };
+
+                        process_infos.push(ProcessInfo {
+                            pid: t.tid,
+                            name,
+                            memory,
+                            virtual_memory,
+                            cpu_usage,
+                            user: p.uid().ok(),
+                            command,
+                            process_type,
+                            state,
+                        });
                     }
                 }
             }
@@ -197,12 +195,10 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
 
         procstats.retain(|_, p| p.last_update.eq(&uptime));
 
-        if let Ok(msg) = rx.recv_timeout(Duration::from_millis(1_500)) {
-            if let Message::SendThreads(state) = msg {
-                if send_threads != state {
-                    procstats.clear();
-                    send_threads = state;
-                }
+        if let Ok(Message::SendThreads(state)) = rx.recv_timeout(Duration::from_millis(1_500)) {
+            if send_threads != state {
+                procstats.clear();
+                send_threads = state;
             }
         }
     }

@@ -58,11 +58,9 @@ pub fn human_bytes(bytes: u64, fixed_width: bool) -> String {
         } else {
             format!("{size:.2}{prefix}")
         }
+    } else if fixed_width {
+        format!("{bytes:>7}")
     } else {
-        if fixed_width {
-            format!("{bytes:>7}")
-        } else {
-            format!("{bytes}")
-        }
+        format!("{bytes}")
     }
 }

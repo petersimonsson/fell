@@ -7,20 +7,21 @@ use procfs::{
 
 use crate::Message;
 
-pub fn start_thread(tx: mpsc::Sender<Message>) -> io::Result<()> {
+pub fn start_thread(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) -> io::Result<()> {
     thread::Builder::new()
         .name("fell-sysinfo".to_string())
-        .spawn(move || thread_main(tx))?;
+        .spawn(move || thread_main(tx, rx))?;
 
     Ok(())
 }
 
-fn thread_main(tx: mpsc::Sender<Message>) {
+fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
     let page_size = procfs::page_size();
     let ticks_per_sec = procfs::ticks_per_second();
     let mut procstats: HashMap<i32, ProcStats> = HashMap::new();
     let mut cpu_total_prev = CpuMetrics::default();
     let mut cpus_prev: Vec<CpuMetrics> = Vec::new();
+    let mut send_threads = false;
 
     loop {
         let uptime = if let Ok(current) = Uptime::current() {
@@ -30,94 +31,102 @@ fn thread_main(tx: mpsc::Sender<Message>) {
         };
         let mut kernel_threads = 0;
         let mut threads = 0;
+        let mut process_tasks = 0;
 
         let processes = if let Ok(processes) = process::all_processes() {
             let mut process_infos: Vec<ProcessInfo> = Vec::default();
 
             for p in processes.flatten() {
-                let (name, cpu_usage, memory, virtual_memory, state) = if let Ok(stat) = p.stat() {
-                    let cpu_usage = procstats.cpu_usage(p.pid, &stat, uptime, ticks_per_sec);
+                if !send_threads {
+                    let (name, cpu_usage, memory, virtual_memory, state) = if let Ok(stat) =
+                        p.stat()
+                    {
+                        let cpu_usage = procstats.cpu_usage(p.pid, &stat, uptime, ticks_per_sec);
 
-                    threads += stat.num_threads - 1;
+                        threads += stat.num_threads - 1;
 
-                    let memory = stat.rss * page_size;
-                    let virtual_memory = stat.vsize;
-                    (stat.comm, cpu_usage, memory, virtual_memory, stat.state)
-                } else {
-                    (String::default(), 0.0, 0, 0, ' ')
-                };
-
-                let (command, process_type) = if let Ok(cmd) = p.cmdline() {
-                    let process_type = if cmd.is_empty() {
-                        kernel_threads += 1;
-                        ProcessType::KernelThread
+                        let memory = stat.rss * page_size;
+                        let virtual_memory = stat.vsize;
+                        (stat.comm, cpu_usage, memory, virtual_memory, stat.state)
                     } else {
-                        ProcessType::Process
+                        (String::default(), 0.0, 0, 0, ' ')
                     };
 
-                    (cmd.join(" "), process_type)
-                } else {
-                    (String::default(), ProcessType::Process)
-                };
-
-                if let Ok(tasks) = p.tasks() {
-                    for t in tasks.flatten() {
-                        if p.pid == t.tid {
-                            continue;
-                        }
-                        let (name, cpu_usage, memory, virtual_memory, state) =
-                            if let Ok(stat) = t.stat() {
-                                let cpu_usage =
-                                    procstats.cpu_usage(t.tid, &stat, uptime, ticks_per_sec);
-                                let memory = stat.rss * page_size;
-                                let virtual_memory = stat.vsize;
-                                (stat.comm, cpu_usage, memory, virtual_memory, stat.state)
-                            } else {
-                                (String::default(), 0.0, 0, 0, ' ')
-                            };
-
-                        let command = if let Ok(cmd) = p.cmdline() {
-                            cmd.join(" ")
+                    let (command, process_type) = if let Ok(cmd) = p.cmdline() {
+                        let process_type = if cmd.is_empty() {
+                            kernel_threads += 1;
+                            ProcessType::KernelThread
                         } else {
-                            String::default()
+                            process_tasks += 1;
+                            ProcessType::Process
                         };
 
-                        process_infos.push(ProcessInfo {
-                            pid: t.tid,
-                            name,
-                            memory,
-                            virtual_memory,
-                            cpu_usage,
-                            user: p.uid().ok(),
-                            command,
-                            process_type: ProcessType::Thread,
-                            state,
-                        });
+                        (cmd.join(" "), process_type)
+                    } else {
+                        (String::default(), ProcessType::Process)
+                    };
+
+                    process_infos.push(ProcessInfo {
+                        pid: p.pid(),
+                        name,
+                        memory,
+                        virtual_memory,
+                        cpu_usage,
+                        user: p.uid().ok(),
+                        command,
+                        process_type,
+                        state,
+                    });
+                } else {
+                    if let Ok(tasks) = p.tasks() {
+                        for t in tasks.flatten() {
+                            let (name, cpu_usage, memory, virtual_memory, state) =
+                                if let Ok(stat) = t.stat() {
+                                    let cpu_usage =
+                                        procstats.cpu_usage(t.tid, &stat, uptime, ticks_per_sec);
+                                    let memory = stat.rss * page_size;
+                                    let virtual_memory = stat.vsize;
+                                    (stat.comm, cpu_usage, memory, virtual_memory, stat.state)
+                                } else {
+                                    (String::default(), 0.0, 0, 0, ' ')
+                                };
+
+                            let (command, process_type) = if let Ok(cmd) = p.cmdline() {
+                                let process_type = if cmd.is_empty() {
+                                    kernel_threads += 1;
+                                    ProcessType::KernelThread
+                                } else if p.pid == t.tid {
+                                    process_tasks += 1;
+                                    ProcessType::Process
+                                } else {
+                                    threads += 1;
+                                    ProcessType::Thread
+                                };
+
+                                (cmd.join(" "), process_type)
+                            } else {
+                                (String::default(), ProcessType::Process)
+                            };
+
+                            process_infos.push(ProcessInfo {
+                                pid: t.tid,
+                                name,
+                                memory,
+                                virtual_memory,
+                                cpu_usage,
+                                user: p.uid().ok(),
+                                command,
+                                process_type,
+                                state,
+                            });
+                        }
                     }
                 }
-
-                process_infos.push(ProcessInfo {
-                    pid: p.pid(),
-                    name,
-                    memory,
-                    virtual_memory,
-                    cpu_usage,
-                    user: p.uid().ok(),
-                    command,
-                    process_type,
-                    state,
-                });
             }
 
             process_infos
         } else {
             Vec::default()
-        };
-
-        let tasks = if !processes.is_empty() {
-            processes.len() as i64 - kernel_threads - threads
-        } else {
-            0
         };
 
         let load_avg = if let Ok(current) = LoadAverage::current() {
@@ -169,7 +178,7 @@ fn thread_main(tx: mpsc::Sender<Message>) {
         if tx
             .send(Message::SysInfo(System {
                 processes,
-                tasks,
+                tasks: process_tasks,
                 threads,
                 kernel_threads,
                 uptime: Duration::from_secs(uptime as u64),
@@ -188,7 +197,14 @@ fn thread_main(tx: mpsc::Sender<Message>) {
 
         procstats.retain(|_, p| p.last_update.eq(&uptime));
 
-        thread::sleep(Duration::from_millis(1_500));
+        if let Ok(msg) = rx.recv_timeout(Duration::from_millis(1_500)) {
+            if let Message::SendThreads(state) = msg {
+                if send_threads != state {
+                    procstats.clear();
+                    send_threads = state;
+                }
+            }
+        }
     }
 }
 

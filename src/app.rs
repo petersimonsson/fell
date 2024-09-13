@@ -19,6 +19,8 @@ pub struct App {
     show_kernel_threads: bool,
     show_threads: bool,
     current_data: System,
+
+    main_tx: Option<mpsc::Sender<Message>>,
 }
 
 impl App {
@@ -26,7 +28,10 @@ impl App {
         &mut self,
         terminal: &mut Tui,
         thread_rx: mpsc::Receiver<Message>,
+        main_tx: mpsc::Sender<Message>,
     ) -> io::Result<()> {
+        self.main_tx = Some(main_tx);
+
         while !self.exit {
             terminal.draw(|frame| self.render_frame(frame))?;
 
@@ -34,6 +39,7 @@ impl App {
                 Ok(msg) => match msg {
                     Message::SysInfo(system) => self.handle_msg(system),
                     Message::Event(event) => self.handle_event(event),
+                    _ => {}
                 },
                 Err(_) => break,
             }
@@ -88,6 +94,10 @@ impl App {
 
     fn toggle_threads(&mut self) {
         self.show_threads = !self.show_threads;
+
+        if let Some(tx) = &self.main_tx {
+            let _ = tx.send(Message::SendThreads(self.show_threads));
+        }
     }
 }
 
@@ -111,7 +121,6 @@ impl Widget for &mut App {
         cpu_info.render(cpu_area, buf);
         ProcessList::new(&self.current_data)
             .show_kernel_threads(self.show_kernel_threads)
-            .show_threads(self.show_threads)
             .render(process_area, buf);
     }
 }

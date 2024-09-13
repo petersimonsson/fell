@@ -13,7 +13,6 @@ pub struct ProcessList<'a> {
     current_data: &'a System,
     usernames: HashMap<u32, String>,
     show_kernel_threads: bool,
-    show_threads: bool,
 }
 
 impl<'a> ProcessList<'a> {
@@ -22,18 +21,11 @@ impl<'a> ProcessList<'a> {
             current_data: data,
             usernames: HashMap::default(),
             show_kernel_threads: false,
-            show_threads: false,
         }
     }
 
     pub fn show_kernel_threads(mut self, show: bool) -> Self {
         self.show_kernel_threads = show;
-
-        self
-    }
-
-    pub fn show_threads(mut self, show: bool) -> Self {
-        self.show_threads = show;
 
         self
     }
@@ -59,12 +51,7 @@ impl<'a> Widget for &mut ProcessList<'a> {
                         }
                         Style::default().gray()
                     }
-                    crate::sysinfo_thread::ProcessType::Thread => {
-                        if !self.show_threads {
-                            return None;
-                        }
-                        Style::default()
-                    }
+                    crate::sysinfo_thread::ProcessType::Thread => Style::default(),
                 };
                 let user = if let Some(user) = p.user {
                     if let Some(name) = self.usernames.get(&user) {

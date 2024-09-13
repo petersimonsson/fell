@@ -36,9 +36,13 @@ pub fn human_duration(duration: Duration) -> String {
     let secs = secs % 3600;
     let mins = secs / 60;
     let secs = secs % 60;
-    let day = if days > 1 { "days" } else { "day" };
 
-    format!("{days} {day}, {hours:02}:{mins:02}:{secs:02}")
+    if days > 0 {
+        let day = if days > 1 { "days" } else { "day" };
+        format!("{days} {day}, {hours:02}:{mins:02}:{secs:02}")
+    } else {
+        format!("{hours:02}:{mins:02}:{secs:02}")
+    }
 }
 
 pub fn human_bytes(bytes: u64, fixed_width: bool) -> String {

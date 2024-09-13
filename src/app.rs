@@ -15,6 +15,7 @@ use crate::{
 #[derive(Debug, Default)]
 pub struct App {
     exit: bool,
+    stopped: bool,
     show_kernel_threads: bool,
     show_threads: bool,
     current_data: System,
@@ -59,6 +60,7 @@ impl App {
             KeyCode::Char('q') | KeyCode::Esc => self.exit(),
             KeyCode::Char('k') => self.toggle_kernel_threads(),
             KeyCode::Char('t') => self.toggle_threads(),
+            KeyCode::Char('s') => self.toggle_stopped(),
             _ => {}
         }
     }
@@ -67,11 +69,17 @@ impl App {
         self.exit = true;
     }
 
+    fn toggle_stopped(&mut self) {
+        self.stopped = !self.stopped;
+    }
+
     fn handle_msg(&mut self, msg: System) {
-        self.current_data = msg;
-        self.current_data
-            .processes
-            .sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
+        if !self.stopped {
+            self.current_data = msg;
+            self.current_data
+                .processes
+                .sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
+        }
     }
 
     fn toggle_kernel_threads(&mut self) {

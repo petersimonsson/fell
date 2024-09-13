@@ -67,31 +67,34 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
                 "Memory: ".into(),
                 format!(
                     "{}/{}",
-                    human_bytes(self.current_data.mem_used, false),
-                    human_bytes(self.current_data.mem_total, false)
+                    human_bytes(self.current_data.mem_info.mem_used, false),
+                    human_bytes(self.current_data.mem_info.mem_total, false)
                 )
                 .set_style(Style::default().bold()),
                 " Swap: ".into(),
                 format!(
                     "{}/{}",
-                    human_bytes(self.current_data.swap_used, false),
-                    human_bytes(self.current_data.swap_total, false)
+                    human_bytes(self.current_data.mem_info.swap_used, false),
+                    human_bytes(self.current_data.mem_info.swap_total, false)
                 )
                 .set_style(Style::default().bold()),
             ]),
             Line::default().spans(vec![
                 "Tasks: ".set_style(Style::default().cyan()),
                 self.current_data
-                    .tasks
+                    .thread_count
+                    .processes
                     .to_string()
                     .set_style(Style::default().cyan().bold()),
                 " Threads: ".set_style(Style::default()),
                 self.current_data
+                    .thread_count
                     .threads
                     .to_string()
                     .set_style(Style::default().bold()),
                 " Kernel Threads: ".set_style(Style::default().gray()),
                 self.current_data
+                    .thread_count
                     .kernel_threads
                     .to_string()
                     .set_style(Style::default().gray().bold()),

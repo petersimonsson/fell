@@ -50,12 +50,8 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
         };
 
         let (average_cpu, cpu_percents) = if let Ok(current) = KernelStats::current() {
-            let metrics = CpuMetrics::from_cpu_time(&current.total);
-            let cpus: Vec<CpuMetrics> = current
-                .cpu_time
-                .iter()
-                .map(CpuMetrics::from_cpu_time)
-                .collect();
+            let metrics = CpuMetrics::from(&current.total);
+            let cpus: Vec<CpuMetrics> = current.cpu_time.iter().map(CpuMetrics::from).collect();
 
             let ret = if cpu_total_prev.total_time() > 0 {
                 let average_cpu = metrics.cpu_usage(&cpu_total_prev);
@@ -346,22 +342,24 @@ struct CpuMetrics {
     guest_nice: Option<u64>,
 }
 
-impl CpuMetrics {
-    fn from_cpu_time(cpu_time: &CpuTime) -> Self {
+impl From<&CpuTime> for CpuMetrics {
+    fn from(value: &CpuTime) -> Self {
         CpuMetrics {
-            user: cpu_time.user,
-            system: cpu_time.system,
-            nice: cpu_time.nice,
-            idle: cpu_time.idle,
-            iowait: cpu_time.iowait,
-            irq: cpu_time.irq,
-            softirq: cpu_time.softirq,
-            steal: cpu_time.steal,
-            guest: cpu_time.guest,
-            guest_nice: cpu_time.guest_nice,
+            user: value.user,
+            system: value.system,
+            nice: value.nice,
+            idle: value.idle,
+            iowait: value.iowait,
+            irq: value.irq,
+            softirq: value.softirq,
+            steal: value.steal,
+            guest: value.guest,
+            guest_nice: value.guest_nice,
         }
     }
+}
 
+impl CpuMetrics {
     fn work_time(&self) -> u64 {
         self.user
             .saturating_add(self.system)

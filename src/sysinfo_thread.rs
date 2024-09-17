@@ -81,15 +81,15 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
         };
 
         if tx
-            .send(Message::SysInfo(System {
+            .send(Message::SysInfo(System::new(
                 processes,
                 thread_count,
-                uptime: Duration::from_secs(uptime as u64),
+                uptime,
                 load_avg,
                 average_cpu,
                 cpu_percents,
                 mem_info,
-            }))
+            )))
             .is_err()
         {
             break;
@@ -185,6 +185,28 @@ pub struct System {
     pub average_cpu: Option<f64>,
     pub cpu_percents: Option<Vec<f64>>,
     pub mem_info: MemSwapInfo,
+}
+
+impl System {
+    fn new(
+        processes: Vec<ProcessInfo>,
+        thread_count: ThreadCount,
+        uptime: f64,
+        load_avg: LoadAvg,
+        average_cpu: Option<f64>,
+        cpu_percents: Option<Vec<f64>>,
+        mem_info: MemSwapInfo,
+    ) -> Self {
+        System {
+            processes,
+            thread_count,
+            uptime: Duration::from_secs(uptime as u64),
+            load_avg,
+            average_cpu,
+            cpu_percents,
+            mem_info,
+        }
+    }
 }
 
 #[derive(Debug)]

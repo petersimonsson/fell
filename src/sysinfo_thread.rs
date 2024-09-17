@@ -50,26 +50,7 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
         };
 
         let (average_cpu, cpu_percents) = if let Ok(current) = KernelStats::current() {
-            let metrics = CpuMetrics::from(&current.total);
-            let cpus: Vec<CpuMetrics> = current.cpu_time.iter().map(CpuMetrics::from).collect();
-
-            let ret = if cpu_total_prev.total_time() > 0 {
-                let average_cpu = metrics.cpu_usage(&cpu_total_prev);
-                let cpu_percents = cpus
-                    .iter()
-                    .zip(cpus_prev.iter())
-                    .map(|(n, o)| n.cpu_usage(o))
-                    .collect();
-
-                (Some(average_cpu), Some(cpu_percents))
-            } else {
-                (None, None)
-            };
-
-            cpu_total_prev = metrics;
-            cpus_prev = cpus;
-
-            ret
+            convert_cpu(&current, &mut cpu_total_prev, &mut cpus_prev)
         } else {
             (None, None)
         };
@@ -148,6 +129,33 @@ fn convert_to_process_infos(
     }
 
     (process_infos, thread_count)
+}
+
+fn convert_cpu(
+    current: &KernelStats,
+    cpu_total_prev: &mut CpuMetrics,
+    cpus_prev: &mut Vec<CpuMetrics>,
+) -> (Option<f64>, Option<Vec<f64>>) {
+    let metrics = CpuMetrics::from(&current.total);
+    let cpus: Vec<CpuMetrics> = current.cpu_time.iter().map(CpuMetrics::from).collect();
+
+    let ret = if cpu_total_prev.total_time() > 0 {
+        let average_cpu = metrics.cpu_usage(&cpu_total_prev);
+        let cpu_percents = cpus
+            .iter()
+            .zip(cpus_prev.iter())
+            .map(|(n, o)| n.cpu_usage(o))
+            .collect();
+
+        (Some(average_cpu), Some(cpu_percents))
+    } else {
+        (None, None)
+    };
+
+    *cpu_total_prev = metrics;
+    *cpus_prev = cpus;
+
+    ret
 }
 
 #[derive(Debug, Default)]

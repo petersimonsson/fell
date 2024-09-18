@@ -140,7 +140,7 @@ fn convert_cpu(
     let cpus: Vec<CpuMetrics> = current.cpu_time.iter().map(CpuMetrics::from).collect();
 
     let ret = if cpu_total_prev.total_time() > 0 {
-        let average_cpu = metrics.cpu_usage(&cpu_total_prev);
+        let average_cpu = metrics.cpu_usage(cpu_total_prev);
         let cpu_percents = cpus
             .iter()
             .zip(cpus_prev.iter())

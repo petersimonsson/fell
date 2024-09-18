@@ -3,7 +3,7 @@ use ratatui::{
     layout::Rect,
     style::{Style, Styled, Stylize},
     text::Line,
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Paragraph, Widget},
 };
 
 use crate::sysinfo_thread::System;
@@ -54,8 +54,6 @@ impl<'a> Widget for &mut CpuInfoWidget<'a> {
     where
         Self: Sized,
     {
-        Paragraph::new(self.cpu_lines.clone())
-            .block(Block::bordered())
-            .render(area, buf);
+        Paragraph::new(self.cpu_lines.clone()).render(area, buf);
     }
 }

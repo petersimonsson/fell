@@ -3,7 +3,7 @@ use ratatui::{
     layout::Rect,
     style::{Style, Styled, Stylize},
     text::Line,
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Paragraph, Widget},
 };
 
 use crate::{
@@ -100,8 +100,6 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
                     .set_style(Style::default().gray().bold()),
             ]),
         ];
-        Paragraph::new(info)
-            .block(Block::bordered())
-            .render(area, buf);
+        Paragraph::new(info).render(area, buf);
     }
 }

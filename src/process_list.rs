@@ -4,7 +4,7 @@ use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
     style::{Style, Stylize},
-    widgets::{Block, Row, Table, Widget},
+    widgets::{Row, Table, Widget},
 };
 
 use crate::{sysinfo_thread::System, utils::human_bytes};
@@ -104,7 +104,6 @@ impl<'a> Widget for &mut ProcessList<'a> {
                 .style(Style::new().bold()),
             )
             .highlight_style(Style::new().reversed())
-            .block(Block::bordered())
             .render(area, buf);
     }
 }

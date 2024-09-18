@@ -114,7 +114,7 @@ impl Widget for &mut App {
         ]);
         let [info_area, process_area] = vertical.areas(area);
 
-        let info_horiz = Layout::horizontal([Constraint::Fill(1), Constraint::Length(48)]);
+        let info_horiz = Layout::horizontal([Constraint::Fill(1), Constraint::Length(47)]);
         let [info_area, cpu_area] = info_horiz.areas(info_area);
 
         SystemInfoWidget::new(&self.current_data).render(info_area, buf);

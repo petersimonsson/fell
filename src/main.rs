@@ -7,6 +7,7 @@ use sysinfo_thread::System;
 mod app;
 mod cpu_info_widget;
 mod event;
+mod proc;
 mod process_list;
 mod sysinfo_thread;
 mod system_info_widget;

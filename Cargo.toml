@@ -16,3 +16,4 @@ crossterm = { version = "0.28" }
 libc = "0.2"
 procfs = "0.16"
 ratatui = "0.28"
+thiserror = "1.0.63"

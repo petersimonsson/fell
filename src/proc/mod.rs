@@ -40,8 +40,11 @@ pub fn get_system() -> Result<System> {
         if let Ok(name) = entry.file_name().into_string() {
             if let Ok(pid) = name.parse::<i32>() {
                 if let Ok(stat) = fs::read_to_string(entry.path().join("stat")) {
-                    let cmdline =
-                        fs::read_to_string(entry.path().join("cmdline")).unwrap_or_default();
+                    let cmdline = fs::read_to_string(entry.path().join("cmdline"))
+                        .unwrap_or_default()
+                        .replace('\0', " ")
+                        .trim()
+                        .to_string();
 
                     let process_type = if cmdline.is_empty() {
                         ProcessType::KernelThread

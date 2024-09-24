@@ -1,5 +1,7 @@
 use std::{fmt::Display, fs};
 
+use pest::Parser;
+use pest_derive::Parser;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -21,6 +23,8 @@ pub struct System {
 pub struct ProcessInfo {
     pub pid: i32,
     pub name: String,
+    pub memory: u64,
+    pub virtual_memory: u64,
     pub stat: Stat,
     pub cmdline: String,
     pub process_type: ProcessType,
@@ -59,6 +63,8 @@ pub fn get_system() -> Result<System> {
                     processes.push(ProcessInfo {
                         pid,
                         name: stat.name.clone(),
+                        memory: stat.memory_res,
+                        virtual_memory: stat.memory_virtual,
                         stat,
                         cmdline,
                         process_type,
@@ -70,6 +76,10 @@ pub fn get_system() -> Result<System> {
 
     Ok(System { processes })
 }
+
+#[derive(Parser)]
+#[grammar = "proc/stat.pest"]
+struct StatParser;
 
 #[derive(Default, Debug)]
 struct Stat {
@@ -126,64 +136,90 @@ impl Display for State {
 
 impl Stat {
     fn parse(value: &str) -> Result<Self> {
-        let mut split = value.split(' ');
+        let mut record = StatParser::parse(Rule::record, value)
+            .map_err(|_| Error::StatParsing)?
+            .next()
+            .unwrap()
+            .into_inner();
 
-        split.next();
-        let name = split.next().ok_or(Error::StatParsing)?;
-        let name = name[1..name.len() - 1].to_string();
-        let state = split.next().ok_or(Error::StatParsing)?.into();
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
 
-        let utime: u32 = split
+        let name = record
             .next()
             .ok_or(Error::StatParsing)?
+            .into_inner()
+            .as_str()
+            .to_string();
+
+        let state: State = record
+            .next()
+            .ok_or(Error::StatParsing)?
+            .into_inner()
+            .as_str()
+            .into();
+
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+
+        let utime: u32 = record
+            .next()
+            .ok_or(Error::StatParsing)?
+            .into_inner()
+            .as_str()
             .parse()
             .map_err(|_| Error::StatParsing)?;
-        let stime: u32 = split
+        let stime: u32 = record
             .next()
             .ok_or(Error::StatParsing)?
+            .into_inner()
+            .as_str()
             .parse()
             .map_err(|_| Error::StatParsing)?;
 
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
 
-        let num_threads: u32 = split
+        let num_threads: u32 = record
             .next()
             .ok_or(Error::StatParsing)?
+            .into_inner()
+            .as_str()
             .parse()
             .map_err(|_| Error::StatParsing)?;
 
-        split.next().ok_or(Error::StatParsing)?;
-        split.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
+        record.next().ok_or(Error::StatParsing)?;
 
-        let memory_virtual = split
+        let memory_virtual: u64 = record
             .next()
             .ok_or(Error::StatParsing)?
+            .into_inner()
+            .as_str()
             .parse()
             .map_err(|_| Error::StatParsing)?;
-        let memory_res = split
+        let memory_res: u64 = record
             .next()
             .ok_or(Error::StatParsing)?
+            .into_inner()
+            .as_str()
             .parse()
             .map_err(|_| Error::StatParsing)?;
 
         Ok(Stat {
             name,
+            state,
             memory_res,
             memory_virtual,
-            state,
             cpu_used: utime + stime,
             num_threads,
         })

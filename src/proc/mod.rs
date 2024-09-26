@@ -163,10 +163,9 @@ fn read_uptime(path: PathBuf) -> Result<f64> {
         .map_err(|_| Error::Uptime("Failed to parse uptime to f64".to_string()))
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub enum State {
-    #[default]
-    Unknown,
+    Unknown(String),
     Running,
     Sleeping,
     Waiting,
@@ -175,6 +174,12 @@ pub enum State {
     Tracing,
     Dead,
     Idle,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        State::Unknown(String::default())
+    }
 }
 
 impl From<&str> for State {
@@ -188,7 +193,7 @@ impl From<&str> for State {
             "t" => State::Tracing,
             "X" => State::Dead,
             "I" => State::Idle,
-            _ => State::Unknown,
+            s => State::Unknown(s.to_string()),
         }
     }
 }
@@ -196,7 +201,7 @@ impl From<&str> for State {
 impl Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            State::Unknown => write!(f, "Unknown"),
+            State::Unknown(s) => write!(f, "Unknown({})", s),
             State::Running => write!(f, "R"),
             State::Sleeping => write!(f, "S"),
             State::Waiting => write!(f, "D"),

@@ -17,15 +17,17 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Default, Debug)]
 pub struct System {
     processes: Vec<ProcessInfo>,
+    num_threads: u32,
 }
 
 #[derive(Default, Debug)]
 pub struct ProcessInfo {
     pub pid: i32,
     pub name: String,
+    pub state: State,
     pub memory: u64,
     pub virtual_memory: u64,
-    pub stat: Stat,
+    pub cpu_usage: f32,
     pub cmdline: String,
     pub process_type: ProcessType,
 }
@@ -41,6 +43,7 @@ pub enum ProcessType {
 pub fn get_system() -> Result<System> {
     let dir_iter = fs::read_dir("/proc")?;
     let mut processes = Vec::new();
+    let mut num_threads = 0;
 
     for entry in dir_iter.flatten() {
         if let Ok(name) = entry.file_name().into_string() {
@@ -59,13 +62,15 @@ pub fn get_system() -> Result<System> {
                     };
 
                     let stat = Stat::parse(&stat)?;
+                    num_threads += stat.num_threads;
 
                     processes.push(ProcessInfo {
                         pid,
-                        name: stat.name.clone(),
+                        name: stat.name,
+                        state: stat.state,
                         memory: stat.memory_res,
                         virtual_memory: stat.memory_virtual,
-                        stat,
+                        cpu_usage: stat.cpu_used as f32,
                         cmdline,
                         process_type,
                     });
@@ -74,7 +79,10 @@ pub fn get_system() -> Result<System> {
         }
     }
 
-    Ok(System { processes })
+    Ok(System {
+        processes,
+        num_threads,
+    })
 }
 
 #[derive(Parser)]

@@ -93,6 +93,8 @@ impl Proc {
             }
         }
 
+        self.prev_cpus.cleanup(uptime);
+
         Ok(System {
             processes,
             num_threads,
@@ -206,6 +208,7 @@ struct PrevCpu {
 
 trait PrevCpuMap {
     fn calculate(&mut self, pid: i32, uptime: f64, cpu_used: u32) -> Option<f32>;
+    fn cleanup(&mut self, uptime: f64);
 }
 
 impl PrevCpuMap for HashMap<i32, PrevCpu> {
@@ -221,6 +224,10 @@ impl PrevCpuMap for HashMap<i32, PrevCpu> {
 
             None
         }
+    }
+
+    fn cleanup(&mut self, uptime: f64) {
+        self.retain(|_, p| p.uptime.eq(&uptime));
     }
 }
 

@@ -1,0 +1,5 @@
+num   = { ASCII_DIGIT* }
+cpu   = { "cpu" ~ (" " | num) }
+field = { (cpu | num) }
+line  = { field ~ (" " ~ field)* }
+file  = { SOI ~ (line ~ ("\r\n" | "\n"))* }

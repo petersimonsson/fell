@@ -1,3 +1,4 @@
+mod cputime;
 mod stat;
 
 use std::{
@@ -7,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use cputime::CpuTime;
 use stat::Stat;
 use thiserror::Error;
 
@@ -18,6 +20,10 @@ pub enum Error {
     StatParsing(String),
     #[error("Failed to read uptime")]
     Uptime(String),
+    #[error("Failed to read loadavg")]
+    LoadAvg(String),
+    #[error("Failed to read CPU time")]
+    CpuTime(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -26,6 +32,7 @@ pub struct Proc {
     ticks: u64,
     page_size: usize,
     prev_cpus: HashMap<i32, PrevCpu>,
+    prev_cpu_time: Vec<CpuTime>,
 }
 
 #[derive(Default, Debug)]
@@ -33,6 +40,8 @@ pub struct System {
     processes: Vec<ProcessInfo>,
     num_threads: ThreadCount,
     uptime: f64,
+    load_avg: LoadAvg,
+    cpu_usage: Vec<f32>,
 }
 
 #[derive(Default, Debug)]
@@ -71,6 +80,7 @@ impl Proc {
             ticks,
             page_size,
             prev_cpus: HashMap::default(),
+            prev_cpu_time: Vec::default(),
         }
     }
 
@@ -100,10 +110,29 @@ impl Proc {
 
         self.prev_cpus.cleanup(uptime);
 
+        let load_avg = LoadAvg::load("/proc/loadavg".into())?;
+
+        let input = fs::read_to_string("/proc/stat").unwrap();
+        let cpu_time = cputime::parse_cpu_times(&input)?;
+
+        let cpu_usage = if !self.prev_cpu_time.is_empty() {
+            cpu_time
+                .iter()
+                .zip(self.prev_cpu_time.iter())
+                .map(|(new, old)| new.cpu_usage(old))
+                .collect()
+        } else {
+            Vec::default()
+        };
+
+        self.prev_cpu_time = cpu_time;
+
         Ok(System {
             processes,
             num_threads,
             uptime,
+            load_avg,
+            cpu_usage,
         })
     }
 
@@ -245,13 +274,54 @@ impl PrevCpuMap for HashMap<i32, PrevCpu> {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct LoadAvg {
+    pub one: f32,
+    pub five: f32,
+    pub fifteen: f32,
+}
+
+impl LoadAvg {
+    fn load(path: PathBuf) -> Result<Self> {
+        let loadavg = fs::read_to_string(&path).map_err(|_| {
+            Error::LoadAvg(format!(
+                "Could not find a loadavg file at {}",
+                path.display()
+            ))
+        })?;
+        let mut loadavg = loadavg.split(' ');
+
+        Ok(LoadAvg {
+            one: loadavg
+                .next()
+                .ok_or_else(|| Error::LoadAvg("Failed to read 1 minute average".to_string()))?
+                .parse()
+                .map_err(|_| Error::LoadAvg("Failed to parse 1 minute average".to_string()))?,
+            five: loadavg
+                .next()
+                .ok_or_else(|| Error::LoadAvg("Failed to read 5 minute average".to_string()))?
+                .parse()
+                .map_err(|_| Error::LoadAvg("Failed to parse 5 minute average".to_string()))?,
+            fifteen: loadavg
+                .next()
+                .ok_or_else(|| Error::LoadAvg("Failed to read 15 minute average".to_string()))?
+                .parse()
+                .map_err(|_| Error::LoadAvg("Failed to parse 15 minute average".to_string()))?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::{thread::sleep, time::Duration};
+
     use super::*;
 
     #[test]
     fn get_pids() -> Result<()> {
         let mut proc = Proc::new();
+        let _system = proc.get_system()?;
+        sleep(Duration::from_millis(1_500));
         let system = proc.get_system()?;
 
         println!("{:?}", system);

@@ -111,7 +111,7 @@ fn read_process_info(pid: i32, path: &Path) -> Result<Option<ProcessInfo>> {
 }
 
 #[derive(Default, Debug)]
-enum State {
+pub enum State {
     #[default]
     Unknown,
     Running,

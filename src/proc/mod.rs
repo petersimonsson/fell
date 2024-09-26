@@ -164,6 +164,7 @@ pub enum State {
     Stopped,
     Tracing,
     Dead,
+    Idle,
 }
 
 impl From<&str> for State {
@@ -176,6 +177,7 @@ impl From<&str> for State {
             "T" => State::Stopped,
             "t" => State::Tracing,
             "X" => State::Dead,
+            "I" => State::Idle,
             _ => State::Unknown,
         }
     }
@@ -192,6 +194,7 @@ impl Display for State {
             State::Stopped => write!(f, "T"),
             State::Tracing => write!(f, "t"),
             State::Dead => write!(f, "X"),
+            State::Idle => write!(f, "I"),
         }
     }
 }

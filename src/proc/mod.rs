@@ -17,7 +17,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Default, Debug)]
 pub struct System {
     processes: Vec<ProcessInfo>,
-    num_threads: u32,
+    num_threads: ThreadCount,
+}
+
+#[derive(Default, Debug)]
+pub struct ThreadCount {
+    tasks: u32,
+    threads: u32,
+    kernel_threads: u32,
 }
 
 #[derive(Default, Debug)]
@@ -43,7 +50,7 @@ pub enum ProcessType {
 pub fn get_system() -> Result<System> {
     let dir_iter = fs::read_dir("/proc")?;
     let mut processes = Vec::new();
-    let mut num_threads = 0;
+    let mut num_threads = ThreadCount::default();
 
     for entry in dir_iter.flatten() {
         if let Ok(name) = entry.file_name().into_string() {
@@ -56,13 +63,15 @@ pub fn get_system() -> Result<System> {
                         .to_string();
 
                     let process_type = if cmdline.is_empty() {
+                        num_threads.kernel_threads += 1;
                         ProcessType::KernelThread
                     } else {
+                        num_threads.tasks += 1;
                         ProcessType::Task
                     };
 
                     let stat = Stat::parse(&stat)?;
-                    num_threads += stat.num_threads;
+                    num_threads.threads += stat.num_threads - 1;
 
                     processes.push(ProcessInfo {
                         pid,

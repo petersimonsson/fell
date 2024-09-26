@@ -1,4 +1,4 @@
-use std::{fmt::Display, fs};
+use std::{fmt::Display, fs, path::Path};
 
 use pest::Parser;
 use pest_derive::Parser;
@@ -37,6 +37,7 @@ pub struct ProcessInfo {
     pub cpu_usage: f32,
     pub cmdline: String,
     pub process_type: ProcessType,
+    pub num_threads: u32,
 }
 
 #[derive(Default, Debug)]
@@ -55,34 +56,16 @@ pub fn get_system() -> Result<System> {
     for entry in dir_iter.flatten() {
         if let Ok(name) = entry.file_name().into_string() {
             if let Ok(pid) = name.parse::<i32>() {
-                if let Ok(stat) = fs::read_to_string(entry.path().join("stat")) {
-                    let cmdline = fs::read_to_string(entry.path().join("cmdline"))
-                        .unwrap_or_default()
-                        .replace('\0', " ")
-                        .trim()
-                        .to_string();
-
-                    let process_type = if cmdline.is_empty() {
+                if let Some(info) = read_process_info(pid, &entry.path())? {
+                    if let ProcessType::KernelThread = info.process_type {
                         num_threads.kernel_threads += 1;
-                        ProcessType::KernelThread
                     } else {
                         num_threads.tasks += 1;
-                        ProcessType::Task
-                    };
+                    }
 
-                    let stat = Stat::parse(&stat)?;
-                    num_threads.threads += stat.num_threads - 1;
+                    num_threads.threads += info.num_threads - 1;
 
-                    processes.push(ProcessInfo {
-                        pid,
-                        name: stat.name,
-                        state: stat.state,
-                        memory: stat.memory_res,
-                        virtual_memory: stat.memory_virtual,
-                        cpu_usage: stat.cpu_used as f32,
-                        cmdline,
-                        process_type,
-                    });
+                    processes.push(info);
                 }
             }
         }
@@ -92,6 +75,38 @@ pub fn get_system() -> Result<System> {
         processes,
         num_threads,
     })
+}
+
+fn read_process_info(pid: i32, path: &Path) -> Result<Option<ProcessInfo>> {
+    if let Ok(stat) = fs::read_to_string(path.join("stat")) {
+        let cmdline = fs::read_to_string(path.join("cmdline"))
+            .unwrap_or_default()
+            .replace('\0', " ")
+            .trim()
+            .to_string();
+
+        let process_type = if cmdline.is_empty() {
+            ProcessType::KernelThread
+        } else {
+            ProcessType::Task
+        };
+
+        let stat = Stat::parse(&stat)?;
+
+        Ok(Some(ProcessInfo {
+            pid,
+            name: stat.name,
+            state: stat.state,
+            memory: stat.memory_res,
+            virtual_memory: stat.memory_virtual,
+            cpu_usage: stat.cpu_used as f32,
+            cmdline,
+            process_type,
+            num_threads: stat.num_threads,
+        }))
+    } else {
+        Ok(None)
+    }
 }
 
 #[derive(Parser)]

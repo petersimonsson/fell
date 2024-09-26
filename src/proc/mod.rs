@@ -32,6 +32,7 @@ pub struct Proc {
 pub struct System {
     processes: Vec<ProcessInfo>,
     num_threads: ThreadCount,
+    uptime: f64,
 }
 
 #[derive(Default, Debug)]
@@ -102,6 +103,7 @@ impl Proc {
         Ok(System {
             processes,
             num_threads,
+            uptime,
         })
     }
 

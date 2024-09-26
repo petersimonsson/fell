@@ -10,10 +10,10 @@ struct StatParser;
 #[derive(Default, Debug)]
 pub(super) struct Stat {
     pub(super) name: String,
-    pub(super) memory_res: u64,
-    pub(super) memory_virtual: u64,
+    pub(super) memory_res: usize,
+    pub(super) memory_virtual: usize,
     pub(super) state: State,
-    pub(super) cpu_used: u32,
+    pub(super) cpu_used: u64,
     pub(super) num_threads: u32,
 }
 
@@ -74,20 +74,20 @@ impl Stat {
             .next()
             .ok_or(Error::StatParsing("Failed to skip cmajflt".to_string()))?;
 
-        let utime: u32 = record
+        let utime: u64 = record
             .next()
             .ok_or(Error::StatParsing("Failed to read utime".to_string()))?
             .into_inner()
             .as_str()
             .parse()
-            .map_err(|_| Error::StatParsing("Failed to parse utime to u32".to_string()))?;
-        let stime: u32 = record
+            .map_err(|_| Error::StatParsing("Failed to parse utime to u64".to_string()))?;
+        let stime: u64 = record
             .next()
             .ok_or(Error::StatParsing("Failed to read stime".to_string()))?
             .into_inner()
             .as_str()
             .parse()
-            .map_err(|_| Error::StatParsing("Failed to parse stime to u32".to_string()))?;
+            .map_err(|_| Error::StatParsing("Failed to parse stime to u64".to_string()))?;
 
         record
             .next()
@@ -117,20 +117,20 @@ impl Stat {
             .next()
             .ok_or(Error::StatParsing("Failed to skip starttime".to_string()))?;
 
-        let memory_virtual: u64 = record
+        let memory_virtual: usize = record
             .next()
             .ok_or(Error::StatParsing("Failed to read vsize".to_string()))?
             .into_inner()
             .as_str()
             .parse()
-            .map_err(|_| Error::StatParsing("Failed to parse vsize to u64".to_string()))?;
-        let memory_res: u64 = record
+            .map_err(|_| Error::StatParsing("Failed to parse vsize to usize".to_string()))?;
+        let memory_res: usize = record
             .next()
             .ok_or(Error::StatParsing("Failed to read rss".to_string()))?
             .into_inner()
             .as_str()
             .parse()
-            .map_err(|_| Error::StatParsing("Failed to parse rss to u64".to_string()))?;
+            .map_err(|_| Error::StatParsing("Failed to parse rss to usize".to_string()))?;
 
         Ok(Stat {
             name,

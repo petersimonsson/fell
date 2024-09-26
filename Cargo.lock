@@ -226,6 +226,7 @@ dependencies = [
  "pest_derive",
  "procfs",
  "ratatui",
+ "rustix",
  "thiserror",
 ]
 

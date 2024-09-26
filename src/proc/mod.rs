@@ -132,7 +132,7 @@ impl Proc {
                 pid,
                 name: stat.name,
                 state: stat.state,
-                memory: stat.memory_res as usize * self.page_size,
+                memory: stat.memory_res * self.page_size,
                 virtual_memory: stat.memory_virtual,
                 cpu_usage: self
                     .prev_cpus

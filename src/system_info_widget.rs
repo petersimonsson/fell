@@ -53,23 +53,13 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
             ]),
             Line::default().spans(vec![
                 "Load average: ".set_style(Style::default()),
-                self.current_data
-                    .load_avg
-                    .one
-                    .to_string()
-                    .set_style(Style::default().bold()),
-                " ".set_style(Style::default()),
-                self.current_data
-                    .load_avg
-                    .five
-                    .to_string()
-                    .set_style(Style::default().bold()),
-                " ".set_style(Style::default()),
-                self.current_data
-                    .load_avg
-                    .fifteen
-                    .to_string()
-                    .set_style(Style::default().bold()),
+                format!(
+                    "{:.2} {:.2} {:.2}",
+                    self.current_data.load_avg.one,
+                    self.current_data.load_avg.five,
+                    self.current_data.load_avg.fifteen
+                )
+                .set_style(Style::default().bold()),
             ]),
             Line::default().spans(vec![
                 "Memory: ".into(),

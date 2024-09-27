@@ -108,7 +108,7 @@ impl<'a> Widget for &mut ProcessList<'a> {
                 Row::new(vec![
                     "PID", "User", "Name", "Virt", "Res", "S", "CPU%", "Command",
                 ])
-                .style(Style::new().bold()),
+                .style(Style::new().underlined()),
             )
             .highlight_style(Style::new().reversed())
             .render(area, buf);

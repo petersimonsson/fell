@@ -10,16 +10,18 @@ use crate::proc::System;
 
 pub struct CpuInfoWidget<'a> {
     cpu_lines: Vec<Line<'a>>,
+    width: u16,
 }
 
 impl<'a> CpuInfoWidget<'a> {
-    pub fn new(data: &'a System) -> Self {
+    pub fn new(data: &'a System, width: u16) -> Self {
+        let cols = width / 12;
         let cpu_lines: Vec<Line> = if let Some(cpu_percents) = &data.cpu_usage {
             cpu_percents[1..cpu_percents.len()]
                 .iter()
                 .enumerate()
                 .collect::<Vec<(usize, &f32)>>()
-                .chunks(4)
+                .chunks(cols as usize)
                 .map(|v| {
                     let mut line_spans = Vec::new();
                     for (i, p) in v {
@@ -41,11 +43,18 @@ impl<'a> CpuInfoWidget<'a> {
             vec![Line::default().spans(["Calculating..."])]
         };
 
-        CpuInfoWidget { cpu_lines }
+        CpuInfoWidget {
+            cpu_lines,
+            width: cols * 12,
+        }
     }
 
     pub fn row_count(&self) -> u16 {
         self.cpu_lines.len() as u16
+    }
+
+    pub fn width(&self) -> u16 {
+        self.width
     }
 }
 

@@ -58,10 +58,10 @@ impl MemInfo {
         }
 
         Ok(MemInfo {
-            mem_total,
-            mem_free,
-            swap_total,
-            swap_free,
+            mem_total: mem_total * 1024,
+            mem_free: mem_free * 1024,
+            swap_total: swap_total * 1024,
+            swap_free: swap_free * 1024,
         })
     }
 

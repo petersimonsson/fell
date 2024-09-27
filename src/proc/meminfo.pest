@@ -1,8 +1,8 @@
 num        = @{ ASCII_DIGIT* }
 memtotal   =  { "MemTotal:" ~ num ~ "kB" ~ ("\r\n" | "\n") }
-memfree    =  { "MemFree:" ~ num ~ "kB" ~ ("\r\n" | "\n") }
+memfree    =  { "MemAvailable:" ~ num ~ "kB" ~ ("\r\n" | "\n") }
 swaptotal  =  { "SwapTotal:" ~ num ~ "kB" ~ ("\r\n" | "\n") }
-swapfree   =  { "SwapFree:" ~ num ~ "kB" ~ ("\r\n" | "\n") }
+swapfree   =  { "SwapAvailable:" ~ num ~ "kB" ~ ("\r\n" | "\n") }
 ignore     = _{ (!("\r\n" | "\n") ~ ANY)* ~ ("\r\n" | "\n") }
 file       =  { (memtotal | memfree | swaptotal | swapfree | ignore)* }
 WHITESPACE = _{ " " | "\t" }

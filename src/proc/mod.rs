@@ -1,4 +1,5 @@
 mod cputime;
+mod loadavg;
 mod meminfo;
 mod stat;
 
@@ -11,6 +12,7 @@ use std::{
 };
 
 use cputime::CpuTime;
+use loadavg::LoadAvg;
 use meminfo::MemInfo;
 use stat::Stat;
 use thiserror::Error;
@@ -290,43 +292,6 @@ impl PrevCpuMap for HashMap<i32, PrevCpu> {
 
     fn cleanup(&mut self, uptime: f64) {
         self.retain(|_, p| p.uptime.eq(&uptime));
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct LoadAvg {
-    pub one: f32,
-    pub five: f32,
-    pub fifteen: f32,
-}
-
-impl LoadAvg {
-    fn load(path: PathBuf) -> Result<Self> {
-        let loadavg = fs::read_to_string(&path).map_err(|_| {
-            Error::LoadAvg(format!(
-                "Could not find a loadavg file at {}",
-                path.display()
-            ))
-        })?;
-        let mut loadavg = loadavg.split(' ');
-
-        Ok(LoadAvg {
-            one: loadavg
-                .next()
-                .ok_or_else(|| Error::LoadAvg("Failed to read 1 minute average".to_string()))?
-                .parse()
-                .map_err(|_| Error::LoadAvg("Failed to parse 1 minute average".to_string()))?,
-            five: loadavg
-                .next()
-                .ok_or_else(|| Error::LoadAvg("Failed to read 5 minute average".to_string()))?
-                .parse()
-                .map_err(|_| Error::LoadAvg("Failed to parse 5 minute average".to_string()))?,
-            fifteen: loadavg
-                .next()
-                .ok_or_else(|| Error::LoadAvg("Failed to read 15 minute average".to_string()))?
-                .parse()
-                .map_err(|_| Error::LoadAvg("Failed to parse 15 minute average".to_string()))?,
-        })
     }
 }
 

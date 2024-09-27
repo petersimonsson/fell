@@ -15,7 +15,7 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
     let mut proc = Proc::new();
 
     loop {
-        if let Ok(system) = proc.get_system() {
+        if let Ok(system) = proc.get_system(send_threads) {
             if tx.send(Message::SysInfo(system)).is_err() {
                 break;
             }
@@ -24,6 +24,7 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
         if let Ok(Message::SendThreads(state)) = rx.recv_timeout(Duration::from_millis(1_500)) {
             if send_threads != state {
                 send_threads = state;
+                proc.reset_prev_cpus();
             }
         }
     }

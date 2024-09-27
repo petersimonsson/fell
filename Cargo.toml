@@ -16,7 +16,6 @@ crossterm = { version = "0.28" }
 libc = "0.2"
 pest = "2.7.13"
 pest_derive = "2.7.13"
-procfs = "0.16"
 ratatui = "0.28"
-rustix = "0.38.37"
+rustix = { version = "0.38.37", features = ["fs", "param"] }
 thiserror = "1.0.63"

@@ -9,10 +9,10 @@ struct MemInfoParser;
 
 #[derive(Debug, Default)]
 pub struct MemInfo {
-    mem_total: u64,
-    mem_free: u64,
-    swap_total: u64,
-    swap_free: u64,
+    pub mem_total: u64,
+    pub mem_free: u64,
+    pub swap_total: u64,
+    pub swap_free: u64,
 }
 
 impl MemInfo {

@@ -1,4 +1,5 @@
 mod cputime;
+mod meminfo;
 mod stat;
 
 use std::{
@@ -9,6 +10,7 @@ use std::{
 };
 
 use cputime::CpuTime;
+use meminfo::MemInfo;
 use stat::Stat;
 use thiserror::Error;
 
@@ -24,6 +26,8 @@ pub enum Error {
     LoadAvg(String),
     #[error("Failed to read CPU time")]
     CpuTime(String),
+    #[error("Failed to read meminfo")]
+    MemInfo(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -42,6 +46,7 @@ pub struct System {
     uptime: f64,
     load_avg: LoadAvg,
     cpu_usage: Vec<f32>,
+    mem_usage: MemInfo,
 }
 
 #[derive(Default, Debug)]
@@ -125,6 +130,9 @@ impl Proc {
             Vec::default()
         };
 
+        let input = fs::read_to_string("/proc/meminfo").unwrap();
+        let mem_usage = MemInfo::parse(&input)?;
+
         self.prev_cpu_time = cpu_time;
 
         Ok(System {
@@ -133,6 +141,7 @@ impl Proc {
             uptime,
             load_avg,
             cpu_usage,
+            mem_usage,
         })
     }
 

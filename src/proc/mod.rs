@@ -94,7 +94,11 @@ impl Proc {
         }
     }
 
-    pub fn get_system(&mut self) -> Result<System> {
+    pub fn reset_prev_cpus(&mut self) {
+        self.prev_cpus.clear();
+    }
+
+    pub fn get_system(&mut self, get_threads: bool) -> Result<System> {
         let dir_iter = fs::read_dir("/proc")?;
         let mut processes = Vec::new();
         let mut num_threads = ThreadCount::default();
@@ -103,16 +107,43 @@ impl Proc {
         for entry in dir_iter.flatten() {
             if let Ok(name) = entry.file_name().into_string() {
                 if let Ok(pid) = name.parse::<i32>() {
-                    if let Some(info) = self.read_process_info(pid, &entry.path(), uptime)? {
-                        if let ProcessType::KernelThread = info.process_type {
-                            num_threads.kernel_threads += 1;
-                        } else {
-                            num_threads.tasks += 1;
+                    if !get_threads {
+                        if let Some(info) =
+                            self.read_process_info(pid, pid, &entry.path(), uptime)?
+                        {
+                            if let ProcessType::KernelThread = info.process_type {
+                                num_threads.kernel_threads += 1;
+                            } else {
+                                num_threads.tasks += 1;
+                            }
+
+                            num_threads.threads += info.num_threads - 1;
+
+                            processes.push(info);
                         }
+                    } else {
+                        let dir_iter = fs::read_dir(entry.path().join("task"))?;
+                        for entry in dir_iter.flatten() {
+                            if let Ok(name) = entry.file_name().into_string() {
+                                if let Ok(tid) = name.parse::<i32>() {
+                                    if let Some(info) =
+                                        self.read_process_info(tid, pid, &entry.path(), uptime)?
+                                    {
+                                        if tid == pid {
+                                            if let ProcessType::KernelThread = info.process_type {
+                                                num_threads.kernel_threads += 1;
+                                            } else {
+                                                num_threads.tasks += 1;
+                                            }
 
-                        num_threads.threads += info.num_threads - 1;
+                                            num_threads.threads += info.num_threads - 1;
+                                        }
 
-                        processes.push(info);
+                                        processes.push(info);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -155,6 +186,7 @@ impl Proc {
     fn read_process_info(
         &mut self,
         pid: i32,
+        parent: i32,
         path: &Path,
         uptime: f64,
     ) -> Result<Option<ProcessInfo>> {
@@ -170,13 +202,15 @@ impl Proc {
                 .trim()
                 .to_string();
 
+            let stat = Stat::parse(&stat)?;
+
             let process_type = if cmdline.is_empty() {
                 ProcessType::KernelThread
-            } else {
+            } else if pid == parent {
                 ProcessType::Task
+            } else {
+                ProcessType::Thread
             };
-
-            let stat = Stat::parse(&stat)?;
 
             Ok(Some(ProcessInfo {
                 pid,
@@ -254,9 +288,9 @@ mod tests {
     #[test]
     fn get_pids() -> Result<()> {
         let mut proc = Proc::new();
-        let _system = proc.get_system()?;
+        let _system = proc.get_system(true)?;
         sleep(Duration::from_millis(1_500));
-        let system = proc.get_system()?;
+        let system = proc.get_system(true)?;
 
         println!("{:?}", system);
 

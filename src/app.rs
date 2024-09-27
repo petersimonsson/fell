@@ -24,12 +24,21 @@ pub struct App {
 }
 
 impl App {
+    pub fn new(show_kernel_threads: bool, show_threads: bool) -> Self {
+        App {
+            show_kernel_threads,
+            show_threads,
+            ..Default::default()
+        }
+    }
+
     pub fn run(
         &mut self,
         terminal: &mut Tui,
         thread_rx: mpsc::Receiver<Message>,
         main_tx: mpsc::Sender<Message>,
     ) -> io::Result<()> {
+        let _ = main_tx.send(Message::SendThreads(self.show_threads));
         self.main_tx = Some(main_tx);
 
         while !self.exit {

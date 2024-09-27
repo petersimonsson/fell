@@ -2,7 +2,7 @@ mod cputime;
 mod loadavg;
 mod meminfo;
 mod stat;
-mod state;
+pub mod state;
 
 use std::{
     collections::HashMap,

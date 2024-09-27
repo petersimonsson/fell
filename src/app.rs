@@ -106,7 +106,7 @@ impl Widget for &mut App {
     where
         Self: Sized,
     {
-        let mut cpu_info = CpuInfoWidget::new(&self.current_data);
+        let mut cpu_info = CpuInfoWidget::new(&self.current_data, area.width - 47);
 
         let vertical = Layout::vertical([
             Constraint::Length(cpu_info.row_count().max(5) + 1),
@@ -114,7 +114,8 @@ impl Widget for &mut App {
         ]);
         let [info_area, process_area] = vertical.areas(area);
 
-        let info_horiz = Layout::horizontal([Constraint::Fill(1), Constraint::Length(47)]);
+        let info_horiz =
+            Layout::horizontal([Constraint::Fill(1), Constraint::Length(cpu_info.width())]);
         let [info_area, cpu_area] = info_horiz.areas(info_area);
 
         SystemInfoWidget::new(&self.current_data).render(info_area, buf);

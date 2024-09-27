@@ -45,7 +45,7 @@ pub fn human_duration(duration: Duration) -> String {
     }
 }
 
-pub fn human_bytes(bytes: u64, fixed_width: bool) -> String {
+pub fn human_bytes(bytes: usize, fixed_width: bool) -> String {
     if bytes > 1024 {
         let (size, prefix) = if bytes > 1099511627776 {
             (bytes as f64 / 1099511627776.0, 'T')

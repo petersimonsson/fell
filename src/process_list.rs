@@ -53,6 +53,13 @@ impl<'a> Widget for &mut ProcessList<'a> {
                     }
                     crate::proc::ProcessType::Thread => Style::default(),
                 };
+
+                let style = if let crate::proc::state::State::Running = p.state {
+                    style.bold()
+                } else {
+                    style
+                };
+
                 let user = if let Some(user) = p.uid {
                     if let Some(name) = self.usernames.get(&user) {
                         name.clone()

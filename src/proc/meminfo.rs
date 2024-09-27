@@ -9,10 +9,10 @@ struct MemInfoParser;
 
 #[derive(Debug, Default)]
 pub struct MemInfo {
-    pub mem_total: u64,
-    pub mem_free: u64,
-    pub swap_total: u64,
-    pub swap_free: u64,
+    pub mem_total: usize,
+    pub mem_free: usize,
+    pub swap_total: usize,
+    pub swap_free: usize,
 }
 
 impl MemInfo {
@@ -65,11 +65,11 @@ impl MemInfo {
         })
     }
 
-    pub fn mem_used(&self) -> u64 {
+    pub fn mem_used(&self) -> usize {
         self.mem_total - self.mem_free
     }
 
-    pub fn swap_used(&self) -> u64 {
+    pub fn swap_used(&self) -> usize {
         self.swap_total - self.swap_free
     }
 }

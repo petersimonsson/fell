@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::{
-    sysinfo_thread::System,
+    proc::System,
     utils::{human_bytes, human_duration},
 };
 
@@ -26,7 +26,15 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
     where
         Self: Sized,
     {
-        let average_cpu = self.current_data.average_cpu.unwrap_or(0.0);
+        let average_cpu = if let Some(cpu_usage) = &self.current_data.cpu_usage {
+            if let Some(cpu_usage) = cpu_usage.first() {
+                *cpu_usage
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
         let average_cpu_style = if average_cpu > 75.0 {
             Style::default().red().bold()
         } else if average_cpu > 50.0 {
@@ -67,34 +75,34 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
                 "Memory: ".into(),
                 format!(
                     "{}/{}",
-                    human_bytes(self.current_data.mem_info.mem_used, false),
-                    human_bytes(self.current_data.mem_info.mem_total, false)
+                    human_bytes(self.current_data.mem_usage.mem_used(), false),
+                    human_bytes(self.current_data.mem_usage.mem_total, false)
                 )
                 .set_style(Style::default().bold()),
                 " Swap: ".into(),
                 format!(
                     "{}/{}",
-                    human_bytes(self.current_data.mem_info.swap_used, false),
-                    human_bytes(self.current_data.mem_info.swap_total, false)
+                    human_bytes(self.current_data.mem_usage.swap_used(), false),
+                    human_bytes(self.current_data.mem_usage.swap_total, false)
                 )
                 .set_style(Style::default().bold()),
             ]),
             Line::default().spans(vec![
                 "Tasks: ".set_style(Style::default().cyan()),
                 self.current_data
-                    .thread_count
-                    .processes
+                    .num_threads
+                    .tasks
                     .to_string()
                     .set_style(Style::default().cyan().bold()),
                 " Threads: ".set_style(Style::default()),
                 self.current_data
-                    .thread_count
+                    .num_threads
                     .threads
                     .to_string()
                     .set_style(Style::default().bold()),
                 " Kernel Threads: ".set_style(Style::default().gray()),
                 self.current_data
-                    .thread_count
+                    .num_threads
                     .kernel_threads
                     .to_string()
                     .set_style(Style::default().gray().bold()),

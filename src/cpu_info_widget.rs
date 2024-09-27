@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Paragraph, Widget},
 };
 
-use crate::sysinfo_thread::System;
+use crate::proc::System;
 
 pub struct CpuInfoWidget<'a> {
     cpu_lines: Vec<Line<'a>>,
@@ -14,11 +14,11 @@ pub struct CpuInfoWidget<'a> {
 
 impl<'a> CpuInfoWidget<'a> {
     pub fn new(data: &'a System) -> Self {
-        let cpu_lines: Vec<Line> = if let Some(cpu_percents) = &data.cpu_percents {
-            cpu_percents
+        let cpu_lines: Vec<Line> = if let Some(cpu_percents) = &data.cpu_usage {
+            cpu_percents[1..cpu_percents.len()]
                 .iter()
                 .enumerate()
-                .collect::<Vec<(usize, &f64)>>()
+                .collect::<Vec<(usize, &f32)>>()
                 .chunks(4)
                 .map(|v| {
                     let mut line_spans = Vec::new();

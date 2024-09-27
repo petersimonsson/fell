@@ -2,7 +2,7 @@ use std::sync::mpsc;
 
 use app::App;
 use crossterm::event::Event;
-use sysinfo_thread::System;
+use proc::System;
 
 mod app;
 mod cpu_info_widget;

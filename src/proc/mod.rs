@@ -7,6 +7,7 @@ use std::{
     fmt::Display,
     fs,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use cputime::CpuTime;
@@ -41,24 +42,25 @@ pub struct Proc {
 
 #[derive(Default, Debug)]
 pub struct System {
-    processes: Vec<ProcessInfo>,
-    num_threads: ThreadCount,
-    uptime: f64,
-    load_avg: LoadAvg,
-    cpu_usage: Vec<f32>,
-    mem_usage: MemInfo,
+    pub processes: Vec<ProcessInfo>,
+    pub num_threads: ThreadCount,
+    pub uptime: Duration,
+    pub load_avg: LoadAvg,
+    pub cpu_usage: Option<Vec<f32>>,
+    pub mem_usage: MemInfo,
 }
 
 #[derive(Default, Debug)]
 pub struct ThreadCount {
-    tasks: u32,
-    threads: u32,
-    kernel_threads: u32,
+    pub tasks: u32,
+    pub threads: u32,
+    pub kernel_threads: u32,
 }
 
 #[derive(Default, Debug)]
 pub struct ProcessInfo {
     pub pid: i32,
+    pub uid: Option<u32>,
     pub name: String,
     pub state: State,
     pub memory: usize,
@@ -121,13 +123,15 @@ impl Proc {
         let cpu_time = cputime::parse_cpu_times(&input)?;
 
         let cpu_usage = if !self.prev_cpu_time.is_empty() {
-            cpu_time
-                .iter()
-                .zip(self.prev_cpu_time.iter())
-                .map(|(new, old)| new.cpu_usage(old))
-                .collect()
+            Some(
+                cpu_time
+                    .iter()
+                    .zip(self.prev_cpu_time.iter())
+                    .map(|(new, old)| new.cpu_usage(old))
+                    .collect(),
+            )
         } else {
-            Vec::default()
+            None
         };
 
         let input = fs::read_to_string("/proc/meminfo").unwrap();
@@ -138,7 +142,7 @@ impl Proc {
         Ok(System {
             processes,
             num_threads,
-            uptime,
+            uptime: Duration::from_secs(uptime as u64),
             load_avg,
             cpu_usage,
             mem_usage,
@@ -152,6 +156,11 @@ impl Proc {
         uptime: f64,
     ) -> Result<Option<ProcessInfo>> {
         if let Ok(stat) = fs::read_to_string(path.join("stat")) {
+            let uid = if let Ok(stat) = rustix::fs::stat(path) {
+                Some(stat.st_uid)
+            } else {
+                None
+            };
             let cmdline = fs::read_to_string(path.join("cmdline"))
                 .unwrap_or_default()
                 .replace('\0', " ")
@@ -168,6 +177,7 @@ impl Proc {
 
             Ok(Some(ProcessInfo {
                 pid,
+                uid,
                 name: stat.name,
                 state: stat.state,
                 memory: stat.memory_res * self.page_size,
@@ -265,8 +275,8 @@ trait PrevCpuMap {
 impl PrevCpuMap for HashMap<i32, PrevCpu> {
     fn calculate(&mut self, pid: i32, uptime: f64, cpu_used: u64, ticks: u64) -> Option<f32> {
         if let Some(prev_cpu) = self.get_mut(&pid) {
-            let cpu_usage =
-                ((cpu_used - prev_cpu.cpu_used) * ticks) as f64 / (uptime - prev_cpu.uptime);
+            let cpu_usage = (cpu_used - prev_cpu.cpu_used) as f64 * 100.0
+                / ((uptime - prev_cpu.uptime) * ticks as f64);
             prev_cpu.uptime = uptime;
             prev_cpu.cpu_used = cpu_used;
 

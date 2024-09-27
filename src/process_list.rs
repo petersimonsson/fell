@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Row, Table, Widget},
 };
 
-use crate::{sysinfo_thread::System, utils::human_bytes};
+use crate::{proc::System, utils::human_bytes};
 
 pub struct ProcessList<'a> {
     current_data: &'a System,
@@ -44,16 +44,16 @@ impl<'a> Widget for &mut ProcessList<'a> {
             .iter()
             .filter_map(|p| {
                 let style = match p.process_type {
-                    crate::sysinfo_thread::ProcessType::Process => Style::default().cyan(),
-                    crate::sysinfo_thread::ProcessType::KernelThread => {
+                    crate::proc::ProcessType::Task => Style::default().cyan(),
+                    crate::proc::ProcessType::KernelThread => {
                         if !self.show_kernel_threads {
                             return None;
                         }
                         Style::default().gray()
                     }
-                    crate::sysinfo_thread::ProcessType::Thread => Style::default(),
+                    crate::proc::ProcessType::Thread => Style::default(),
                 };
-                let user = if let Some(user) = p.user {
+                let user = if let Some(user) = p.uid {
                     if let Some(name) = self.usernames.get(&user) {
                         name.clone()
                     } else {
@@ -71,11 +71,11 @@ impl<'a> Widget for &mut ProcessList<'a> {
                         format!("{:>7}", p.pid),
                         user,
                         p.name.clone(),
-                        human_bytes(p.virtual_memory, true),
-                        human_bytes(p.memory, true),
+                        human_bytes(p.virtual_memory as u64, true),
+                        human_bytes(p.memory as u64, true),
                         p.state.to_string(),
-                        format!("{:>5.1}%", p.cpu_usage),
-                        p.command.clone(),
+                        format!("{:>5.1}%", p.cpu_usage.unwrap_or_default()),
+                        p.cmdline.clone(),
                     ])
                     .style(style),
                 )

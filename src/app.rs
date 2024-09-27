@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use crate::{
-    cpu_info_widget::CpuInfoWidget, process_list::ProcessList, sysinfo_thread::System,
+    cpu_info_widget::CpuInfoWidget, proc::System, process_list::ProcessList,
     system_info_widget::SystemInfoWidget, tui::Tui, Message,
 };
 

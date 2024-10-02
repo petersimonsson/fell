@@ -1,6 +1,7 @@
 mod cputime;
 mod loadavg;
 mod meminfo;
+mod prev_cpu;
 mod stat;
 pub mod state;
 
@@ -14,6 +15,7 @@ use std::{
 use cputime::CpuTime;
 use loadavg::LoadAvg;
 use meminfo::MemInfo;
+use prev_cpu::{PrevCpu, PrevCpuMap};
 use stat::Stat;
 use state::State;
 use thiserror::Error;
@@ -246,37 +248,6 @@ fn read_uptime(path: PathBuf) -> Result<f64> {
     uptime
         .parse::<f64>()
         .map_err(|_| Error::Uptime("Failed to parse uptime to f64".to_string()))
-}
-
-struct PrevCpu {
-    uptime: f64,
-    cpu_used: u64,
-}
-
-trait PrevCpuMap {
-    fn calculate(&mut self, pid: i32, uptime: f64, cpu_used: u64, ticks: u64) -> Option<f32>;
-    fn cleanup(&mut self, uptime: f64);
-}
-
-impl PrevCpuMap for HashMap<i32, PrevCpu> {
-    fn calculate(&mut self, pid: i32, uptime: f64, cpu_used: u64, ticks: u64) -> Option<f32> {
-        if let Some(prev_cpu) = self.get_mut(&pid) {
-            let cpu_usage = (cpu_used - prev_cpu.cpu_used) as f64 * 100.0
-                / ((uptime - prev_cpu.uptime) * ticks as f64);
-            prev_cpu.uptime = uptime;
-            prev_cpu.cpu_used = cpu_used;
-
-            Some(cpu_usage as f32)
-        } else {
-            self.insert(pid, PrevCpu { uptime, cpu_used });
-
-            None
-        }
-    }
-
-    fn cleanup(&mut self, uptime: f64) {
-        self.retain(|_, p| p.uptime.eq(&uptime));
-    }
 }
 
 #[cfg(test)]

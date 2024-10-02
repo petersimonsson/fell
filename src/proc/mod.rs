@@ -2,21 +2,17 @@ mod cputime;
 mod loadavg;
 mod meminfo;
 mod prev_cpu;
+pub mod process_info;
 mod stat;
 pub mod state;
 
-use std::{
-    collections::HashMap,
-    fs,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{collections::HashMap, fs, path::PathBuf, time::Duration};
 
 use cputime::CpuTime;
 use loadavg::LoadAvg;
 use meminfo::MemInfo;
 use prev_cpu::{PrevCpu, PrevCpuMap};
-use stat::Stat;
+use process_info::{ProcessInfo, ProcessType};
 use state::State;
 use thiserror::Error;
 
@@ -62,28 +58,6 @@ pub struct ThreadCount {
     pub kernel_threads: u32,
 }
 
-#[derive(Default, Debug)]
-pub struct ProcessInfo {
-    pub pid: i32,
-    pub uid: Option<u32>,
-    pub name: String,
-    pub state: State,
-    pub memory: usize,
-    pub virtual_memory: usize,
-    pub cpu_usage: Option<f32>,
-    pub cmdline: String,
-    pub process_type: ProcessType,
-    pub num_threads: u32,
-}
-
-#[derive(Default, Debug)]
-pub enum ProcessType {
-    #[default]
-    Task,
-    Thread,
-    KernelThread,
-}
-
 impl Proc {
     pub fn new() -> Self {
         let ticks = rustix::param::clock_ticks_per_second();
@@ -111,7 +85,7 @@ impl Proc {
                 if let Ok(pid) = name.parse::<i32>() {
                     if !get_threads {
                         if let Some(info) =
-                            self.read_process_info(pid, pid, &entry.path(), uptime)?
+                            ProcessInfo::read(self, pid, pid, &entry.path(), uptime)?
                         {
                             if let ProcessType::KernelThread = info.process_type {
                                 num_threads.kernel_threads += 1;
@@ -129,7 +103,7 @@ impl Proc {
                             if let Ok(name) = entry.file_name().into_string() {
                                 if let Ok(tid) = name.parse::<i32>() {
                                     if let Some(info) =
-                                        self.read_process_info(tid, pid, &entry.path(), uptime)?
+                                        ProcessInfo::read(self, tid, pid, &entry.path(), uptime)?
                                     {
                                         if tid == pid {
                                             if let ProcessType::KernelThread = info.process_type {
@@ -183,54 +157,6 @@ impl Proc {
             cpu_usage,
             mem_usage,
         })
-    }
-
-    fn read_process_info(
-        &mut self,
-        pid: i32,
-        parent: i32,
-        path: &Path,
-        uptime: f64,
-    ) -> Result<Option<ProcessInfo>> {
-        if let Ok(stat) = fs::read_to_string(path.join("stat")) {
-            let uid = if let Ok(stat) = rustix::fs::stat(path) {
-                Some(stat.st_uid)
-            } else {
-                None
-            };
-            let cmdline = fs::read_to_string(path.join("cmdline"))
-                .unwrap_or_default()
-                .replace('\0', " ")
-                .trim()
-                .to_string();
-
-            let stat = Stat::parse(&stat)?;
-
-            let process_type = if cmdline.is_empty() {
-                ProcessType::KernelThread
-            } else if pid == parent {
-                ProcessType::Task
-            } else {
-                ProcessType::Thread
-            };
-
-            Ok(Some(ProcessInfo {
-                pid,
-                uid,
-                name: stat.name,
-                state: stat.state,
-                memory: stat.memory_res * self.page_size,
-                virtual_memory: stat.memory_virtual,
-                cpu_usage: self
-                    .prev_cpus
-                    .calculate(pid, uptime, stat.cpu_used, self.ticks),
-                cmdline,
-                process_type,
-                num_threads: stat.num_threads,
-            }))
-        } else {
-            Ok(None)
-        }
     }
 }
 

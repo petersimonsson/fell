@@ -7,7 +7,10 @@ use ratatui::{
     widgets::{Row, Table, Widget},
 };
 
-use crate::{proc::System, utils::human_bytes};
+use crate::{
+    proc::{process_info::ProcessType, System},
+    utils::human_bytes,
+};
 
 pub struct ProcessList<'a> {
     current_data: &'a System,
@@ -44,14 +47,14 @@ impl<'a> Widget for &mut ProcessList<'a> {
             .iter()
             .filter_map(|p| {
                 let style = match p.process_type {
-                    crate::proc::ProcessType::Task => Style::default().cyan(),
-                    crate::proc::ProcessType::KernelThread => {
+                    ProcessType::Task => Style::default().cyan(),
+                    ProcessType::KernelThread => {
                         if !self.show_kernel_threads {
                             return None;
                         }
                         Style::default().gray()
                     }
-                    crate::proc::ProcessType::Thread => Style::default(),
+                    ProcessType::Thread => Style::default(),
                 };
 
                 let style = if let crate::proc::state::State::Running = p.state {

@@ -8,6 +8,8 @@ use ratatui::{
 
 use crate::proc::System;
 
+const COL_SIZE: u16 = 11;
+
 pub struct CpuInfoWidget<'a> {
     cpu_lines: Vec<Line<'a>>,
     width: u16,
@@ -15,7 +17,7 @@ pub struct CpuInfoWidget<'a> {
 
 impl<'a> CpuInfoWidget<'a> {
     pub fn new(data: &'a System, width: u16) -> Self {
-        let cols = width / 12;
+        let cols = width / COL_SIZE;
         let cpu_lines: Vec<Line> = if let Some(cpu_percents) = &data.cpu_usage {
             cpu_percents[1..cpu_percents.len()]
                 .iter()
@@ -45,7 +47,7 @@ impl<'a> CpuInfoWidget<'a> {
 
         CpuInfoWidget {
             cpu_lines,
-            width: cols * 12,
+            width: cols * COL_SIZE,
         }
     }
 

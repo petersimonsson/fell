@@ -34,7 +34,7 @@ impl<'a> CpuInfoWidget<'a> {
                         } else {
                             Style::default().bold()
                         };
-                        line_spans.push(format!("{:3}: ", i).set_style(Style::default()));
+                        line_spans.push(format!("{:3}: ", i).into());
                         line_spans.push(format!("{:5.1}% ", p).set_style(number_style));
                     }
 

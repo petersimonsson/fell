@@ -44,15 +44,15 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
         };
         let info = vec![
             Line::default().spans(vec![
-                "Uptime: ".set_style(Style::default()),
+                "Uptime: ".into(),
                 human_duration(self.current_data.uptime).set_style(Style::default().bold()),
             ]),
             Line::default().spans(vec![
-                "Average CPU: ".set_style(Style::default()),
+                "Average CPU: ".into(),
                 format!("{:.1}%", average_cpu).set_style(average_cpu_style),
             ]),
             Line::default().spans(vec![
-                "Load average: ".set_style(Style::default()),
+                "Load average: ".into(),
                 format!(
                     "{:.2} {:.2} {:.2}",
                     self.current_data.load_avg.one,
@@ -84,7 +84,7 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
                     .tasks
                     .to_string()
                     .set_style(Style::default().cyan().bold()),
-                " Threads: ".set_style(Style::default()),
+                " Threads: ".into(),
                 self.current_data
                     .num_threads
                     .threads

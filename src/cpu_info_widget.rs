@@ -45,10 +45,13 @@ impl<'a> CpuInfoWidget<'a> {
             vec![Line::default().spans(["Calculating..."])]
         };
 
-        CpuInfoWidget {
-            cpu_lines,
-            width: cols * COL_SIZE,
-        }
+        let width = if cpu_lines.len() == 1 {
+            cpu_lines.first().unwrap().width() as u16
+        } else {
+            cols * COL_SIZE
+        };
+
+        CpuInfoWidget { cpu_lines, width }
     }
 
     pub fn row_count(&self) -> u16 {

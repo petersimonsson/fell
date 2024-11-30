@@ -113,7 +113,7 @@ impl<'a> Widget for &mut ProcessList<'a> {
                 ])
                 .style(Style::new().underlined()),
             )
-            .highlight_style(Style::new().reversed())
+            .row_highlight_style(Style::new().reversed())
             .render(area, buf);
     }
 }

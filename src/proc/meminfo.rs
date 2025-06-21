@@ -1,11 +1,6 @@
-use pest::Parser;
-use pest_derive::Parser;
+use std::str::FromStr;
 
-use super::{Error, Result};
-
-#[derive(Parser)]
-#[grammar = "proc/meminfo.pest"]
-struct MemInfoParser;
+use super::Error;
 
 #[derive(Debug, Default)]
 pub struct MemInfo {
@@ -15,56 +10,61 @@ pub struct MemInfo {
     pub swap_free: usize,
 }
 
-impl MemInfo {
-    pub fn parse(input: &str) -> Result<Self> {
-        let mut file = MemInfoParser::parse(Rule::file, input)
-            .map_err(|_| Error::MemInfo("Failed to parse meminfo".to_string()))?;
+impl FromStr for MemInfo {
+    type Err = Error;
 
-        let mut mem_total = 0;
-        let mut mem_free = 0;
-        let mut swap_total = 0;
-        let mut swap_free = 0;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let mut meminfo = MemInfo::default();
+        for line in s.split('\n') {
+            if !line.is_empty() {
+                let (key, value) = line.split_once(':').ok_or(Error::MemInfo(
+                    "Failed to parse memory info line".to_string(),
+                ))?;
 
-        if let Some(pairs) = file.next() {
-            for pair in pairs.into_inner() {
-                match pair.as_rule() {
-                    Rule::memtotal => {
-                        mem_total =
-                            pair.into_inner().as_str().parse().map_err(|_| {
-                                Error::MemInfo("Failed to parse MemTotal".to_string())
-                            })?
+                match key {
+                    "MemTotal" => {
+                        meminfo.mem_total = value
+                            .trim()
+                            .strip_suffix(" kB")
+                            .ok_or(Error::MemInfo("Failed to parse MemTotal".to_string()))?
+                            .parse()
+                            .map_err(|_| Error::MemInfo("Failed to parse MemTotal".to_string()))?;
                     }
-                    Rule::memfree => {
-                        mem_free =
-                            pair.into_inner().as_str().parse().map_err(|_| {
-                                Error::MemInfo("Failed to parse MemFree".to_string())
-                            })?
+                    "MemFree" => {
+                        meminfo.mem_total = value
+                            .trim()
+                            .strip_suffix(" kB")
+                            .ok_or(Error::MemInfo("Failed to parse MemFree".to_string()))?
+                            .parse()
+                            .map_err(|_| Error::MemInfo("Failed to parse MemFree".to_string()))?;
                     }
-                    Rule::swaptotal => {
-                        swap_total =
-                            pair.into_inner().as_str().parse().map_err(|_| {
-                                Error::MemInfo("Failed to parse SwapTotal".to_string())
-                            })?
+                    "SwapTotal" => {
+                        meminfo.mem_total = value
+                            .trim()
+                            .strip_suffix(" kB")
+                            .ok_or(Error::MemInfo("Failed to parse SwapTotal".to_string()))?
+                            .parse()
+                            .map_err(|_| Error::MemInfo("Failed to parse SwapTotal".to_string()))?;
                     }
-                    Rule::swapfree => {
-                        swap_free =
-                            pair.into_inner().as_str().parse().map_err(|_| {
-                                Error::MemInfo("Failed to parse SwapFree".to_string())
-                            })?
+                    "SwapFree" => {
+                        meminfo.mem_total = value
+                            .trim()
+                            .strip_suffix(" kB")
+                            .ok_or(Error::MemInfo("Failed to parse SwapFree".to_string()))?
+                            .parse()
+                            .map_err(|_| Error::MemInfo("Failed to parse SwapFree".to_string()))?;
+                        break; // Stop parsing when we got all we want
                     }
                     _ => {}
                 }
             }
         }
 
-        Ok(MemInfo {
-            mem_total: mem_total * 1024,
-            mem_free: mem_free * 1024,
-            swap_total: swap_total * 1024,
-            swap_free: swap_free * 1024,
-        })
+        Ok(meminfo)
     }
+}
 
+impl MemInfo {
     pub fn mem_used(&self) -> usize {
         self.mem_total - self.mem_free
     }

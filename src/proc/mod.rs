@@ -6,7 +6,7 @@ pub mod process_info;
 mod stat;
 pub mod state;
 
-use std::{collections::HashMap, fs, path::PathBuf, time::Duration};
+use std::{collections::HashMap, fs, path::PathBuf, str::FromStr, time::Duration};
 
 use cputime::CpuTime;
 use loadavg::LoadAvg;
@@ -144,8 +144,8 @@ impl Proc {
             None
         };
 
-        let input = fs::read_to_string("/proc/meminfo").unwrap();
-        let mem_usage = MemInfo::parse(&input)?;
+        let input = fs::read_to_string("/proc/meminfo")?;
+        let mem_usage = MemInfo::from_str(&input)?;
 
         self.prev_cpu_time = cpu_time;
 

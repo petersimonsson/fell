@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [profile.release]
-debug = false
-strip = "symbols"
+debug = true
 lto = true
 opt-level = 3
 codegen-units = 1

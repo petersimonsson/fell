@@ -1,20 +1,16 @@
-use pest::{iterators::Pair, Parser};
-use pest_derive::Parser;
+use std::str::FromStr;
 
 use super::{Error, Result};
 
-#[derive(Parser)]
-#[grammar = "proc/cputime.pest"]
-struct CpuTimeParser;
-
 pub(super) fn parse_cpu_times(input: &str) -> Result<Vec<CpuTime>> {
-    let mut file = CpuTimeParser::parse(Rule::file, input)
-        .map_err(|_| Error::CpuTime("Failed to parse CPU time".to_string()))?;
     let mut ret = Vec::default();
 
-    if let Some(file) = file.next() {
-        for line in file.into_inner() {
-            let cpu_time = CpuTime::from_pair(line)?;
+    for line in input.split('\n') {
+        if line.starts_with("cpu") {
+            let (_, times) = line
+                .split_once(' ')
+                .ok_or(Error::CpuTime("Failed to parse CPU time".to_string()))?;
+            let cpu_time = CpuTime::from_str(times.trim())?;
             ret.push(cpu_time);
         }
     }
@@ -34,6 +30,73 @@ pub(super) struct CpuTime {
     pub(super) steal: u64,
     pub(super) guest: u64,
     pub(super) guest_nice: u64,
+}
+
+impl FromStr for CpuTime {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let split = s.split(' ');
+        let mut cputime = Self::default();
+
+        for (i, val) in split.enumerate() {
+            match i {
+                0 => {
+                    cputime.user = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read user time".to_string()))?
+                }
+                1 => {
+                    cputime.nice = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read nice time".to_string()))?
+                }
+                2 => {
+                    cputime.system = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read system time".to_string()))?
+                }
+                3 => {
+                    cputime.idle = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read idle time".to_string()))?
+                }
+                4 => {
+                    cputime.iowait = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read iowait time".to_string()))?
+                }
+                5 => {
+                    cputime.irq = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read irq time".to_string()))?
+                }
+                6 => {
+                    cputime.softirq = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read softirq time".to_string()))?
+                }
+                7 => {
+                    cputime.steal = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read steal time".to_string()))?
+                }
+                8 => {
+                    cputime.guest = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read guest time".to_string()))?
+                }
+                9 => {
+                    cputime.guest_nice = val
+                        .parse()
+                        .map_err(|_| Error::CpuTime("Failed to read guest nice time".to_string()))?
+                }
+                _ => {}
+            }
+        }
+
+        Ok(cputime)
+    }
 }
 
 impl CpuTime {
@@ -59,82 +122,18 @@ impl CpuTime {
     pub(super) fn cpu_usage(&self, old: &CpuTime) -> f32 {
         (self.work() - old.work()) as f32 * 100.0 / (self.total() - old.total()) as f32
     }
+}
 
-    fn from_pair(value: Pair<Rule>) -> Result<Self> {
-        let mut fields = value.into_inner();
-        fields.next().unwrap();
-        let user: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read user time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse user time".to_string()))?;
-        let nice: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read nice time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse nice time".to_string()))?;
-        let system: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read system time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse system time".to_string()))?;
-        let idle: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read idle time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse idle time".to_string()))?;
-        let iowait: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read iowait time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse iowait time".to_string()))?;
-        let irq: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read irq time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse irq time".to_string()))?;
-        let softirq: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read softirq time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse softirq time".to_string()))?;
-        let steal: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read steal time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse steal time".to_string()))?;
-        let guest: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read guest time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse guest time".to_string()))?;
-        let guest_nice: u64 = fields
-            .next()
-            .ok_or_else(|| Error::CpuTime("Failed to read guest_nice time".to_string()))?
-            .as_str()
-            .parse()
-            .map_err(|_| Error::CpuTime("Failed to parse guest_nice time".to_string()))?;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        Ok(CpuTime {
-            user,
-            nice,
-            system,
-            idle,
-            iowait,
-            irq,
-            softirq,
-            steal,
-            guest,
-            guest_nice,
-        })
+    #[test]
+    pub fn test_cputime_fromstr() {
+        let line = "288589 431 105679 37547659 1653040 34363 16790 0 0 0";
+
+        let parsed = CpuTime::from_str(line);
+
+        println!("{:?}", parsed);
     }
 }

@@ -129,7 +129,7 @@ impl Proc {
 
         let load_avg = LoadAvg::load("/proc/loadavg".into())?;
 
-        let input = fs::read_to_string("/proc/stat").unwrap();
+        let input = fs::read_to_string("/proc/stat")?;
         let cpu_time = cputime::parse_cpu_times(&input)?;
 
         let cpu_usage = if !self.prev_cpu_time.is_empty() {

@@ -1,11 +1,6 @@
-use pest::Parser;
-use pest_derive::Parser;
+use std::str::FromStr;
 
-use super::{Error, Result, State};
-
-#[derive(Parser)]
-#[grammar = "proc/stat.pest"]
-struct StatParser;
+use super::{Error, State};
 
 #[derive(Default, Debug)]
 pub(super) struct Stat {
@@ -17,128 +12,53 @@ pub(super) struct Stat {
     pub(super) num_threads: u32,
 }
 
-impl Stat {
-    pub(super) fn parse(value: &str) -> Result<Self> {
-        let mut record = StatParser::parse(Rule::record, value)
-            .map_err(|_| Error::StatParsing("Failed to parse values from string".to_string()))?
-            .next()
-            .unwrap()
-            .into_inner();
+impl FromStr for Stat {
+    type Err = Error;
 
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip pid".to_string()))?;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let mut stat = Stat::default();
 
-        let name = record
-            .next()
-            .ok_or(Error::StatParsing("Failed to read comm".to_string()))?
-            .into_inner()
-            .as_str()
-            .to_string();
+        let (_, tmp) = s.split_once(" (").ok_or(Error::StatParsing(
+            "Failed to find start of comm".to_string(),
+        ))?;
+        let (name, tmp) = tmp
+            .split_once(") ")
+            .ok_or(Error::StatParsing("Failed to find end of comm".to_string()))?;
+        stat.name = name.to_string();
 
-        let state: State = record
-            .next()
-            .ok_or(Error::StatParsing("Failed to read state".to_string()))?
-            .into_inner()
-            .as_str()
-            .into();
+        for (i, value) in tmp.split(' ').enumerate() {
+            match i {
+                0 => stat.state = value.into(),
+                11 => {
+                    stat.cpu_used = value
+                        .parse()
+                        .map_err(|_| Error::StatParsing("Failed to parse utime".to_string()))?
+                }
+                12 => {
+                    stat.cpu_used += value
+                        .parse::<u64>()
+                        .map_err(|_| Error::StatParsing("Failed to parse stime".to_string()))?
+                }
+                17 => {
+                    stat.num_threads = value.parse().map_err(|_| {
+                        Error::StatParsing("Failed to parse num threads".to_string())
+                    })?
+                }
+                20 => {
+                    stat.memory_virtual = value.parse().map_err(|_| {
+                        Error::StatParsing("Failed to parse memory virtual".to_string())
+                    })?
+                }
+                21 => {
+                    stat.memory_res = value.parse().map_err(|_| {
+                        Error::StatParsing("Failed to parse memory res".to_string())
+                    })?;
+                    break; // Stop parsing early when we got what we need
+                }
+                _ => {}
+            }
+        }
 
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip ppid".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip pgrp".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip session".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip tty_nr".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip tpgid".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip flags".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip minflt".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip cminflt".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip majflt".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip cmajflt".to_string()))?;
-
-        let utime: u64 = record
-            .next()
-            .ok_or(Error::StatParsing("Failed to read utime".to_string()))?
-            .into_inner()
-            .as_str()
-            .parse()
-            .map_err(|_| Error::StatParsing("Failed to parse utime to u64".to_string()))?;
-        let stime: u64 = record
-            .next()
-            .ok_or(Error::StatParsing("Failed to read stime".to_string()))?
-            .into_inner()
-            .as_str()
-            .parse()
-            .map_err(|_| Error::StatParsing("Failed to parse stime to u64".to_string()))?;
-
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip cutime".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip cstime".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip priority".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip nice".to_string()))?;
-
-        let num_threads: u32 = record
-            .next()
-            .ok_or(Error::StatParsing("Failed to read num_threads".to_string()))?
-            .into_inner()
-            .as_str()
-            .parse()
-            .map_err(|_| Error::StatParsing("Failed to parse num_threads to u32".to_string()))?;
-
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip itrealvalue".to_string()))?;
-        record
-            .next()
-            .ok_or(Error::StatParsing("Failed to skip starttime".to_string()))?;
-
-        let memory_virtual: usize = record
-            .next()
-            .ok_or(Error::StatParsing("Failed to read vsize".to_string()))?
-            .into_inner()
-            .as_str()
-            .parse()
-            .map_err(|_| Error::StatParsing("Failed to parse vsize to usize".to_string()))?;
-        let memory_res: usize = record
-            .next()
-            .ok_or(Error::StatParsing("Failed to read rss".to_string()))?
-            .into_inner()
-            .as_str()
-            .parse()
-            .map_err(|_| Error::StatParsing("Failed to parse rss to usize".to_string()))?;
-
-        Ok(Stat {
-            name,
-            state,
-            memory_res,
-            memory_virtual,
-            cpu_used: utime + stime,
-            num_threads,
-        })
+        Ok(stat)
     }
 }

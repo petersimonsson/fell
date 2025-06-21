@@ -1,6 +1,0 @@
-num           = @{ (ASCII_DIGIT | "-")+ }
-not_bracket   =  { !(") ") ~ ANY }
-name          = @{ not_bracket* }
-state         =  { ASCII_ALPHA }
-value         =  { "(" ~ name ~ ")" | num | state }
-record        =  { value ~ (" " ~ value)* }

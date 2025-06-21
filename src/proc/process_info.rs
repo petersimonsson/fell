@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{fs, path::Path, str::FromStr};
 
 use super::{prev_cpu::PrevCpuMap, stat::Stat, state::State, Proc, Result};
 
@@ -44,7 +44,7 @@ impl ProcessInfo {
                 .trim()
                 .to_string();
 
-            let stat = Stat::parse(&stat)?;
+            let stat = Stat::from_str(&stat)?;
 
             let process_type = if cmdline.is_empty() {
                 ProcessType::KernelThread

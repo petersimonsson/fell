@@ -23,6 +23,7 @@ pub struct App {
     show_kernel_threads: bool,
     show_threads: bool,
     current_data: System,
+    error_str: String,
 
     main_tx: Option<mpsc::Sender<Message>>,
 }
@@ -62,9 +63,12 @@ impl App {
 
             match thread_rx.recv() {
                 Ok(msg) => match msg {
-                    Message::SysInfo(system) => self.handle_msg(system),
+                    Message::SysInfo(system) => {
+                        self.error_str.clear();
+                        self.handle_msg(system);
+                    }
                     Message::Event(event) => self.handle_event(event),
-                    Message::Error(error) => return Err(error.into()),
+                    Message::Error(error) => self.error_str = error.to_string(),
                     _ => {}
                 },
                 Err(_) => break,
@@ -151,9 +155,16 @@ impl Widget for &mut App {
             .show_kernel_threads(self.show_kernel_threads)
             .render(process_area, buf);
 
+        let infobar_layout =
+            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]);
+        let [info_area, menu_area] = infobar_layout.areas(infobar_area);
+        Paragraph::new(self.error_str.clone())
+            .block(Block::new().borders(Borders::TOP))
+            .left_aligned()
+            .render(info_area, buf);
         Paragraph::new("(Q)uit - Toggle (t)threads, (k)ernel threads - (S)topped")
             .block(Block::new().borders(Borders::TOP))
             .right_aligned()
-            .render(infobar_area, buf);
+            .render(menu_area, buf);
     }
 }

@@ -15,9 +15,16 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
     let mut proc = Proc::new();
 
     loop {
-        if let Ok(system) = proc.get_system(send_threads) {
-            if tx.send(Message::SysInfo(system)).is_err() {
-                break;
+        match proc.get_system(send_threads) {
+            Ok(system) => {
+                if tx.send(Message::SysInfo(system)).is_err() {
+                    break;
+                }
+            }
+            Err(e) => {
+                if tx.send(Message::Error(e)).is_err() {
+                    break;
+                }
             }
         }
 

@@ -1,4 +1,4 @@
-use std::{io, sync::mpsc};
+use std::sync::mpsc;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -6,10 +6,14 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget},
     Frame,
 };
+use thiserror::Error;
 
 use crate::{
-    cpu_info_widget::CpuInfoWidget, proc::System, process_list::ProcessList,
-    system_info_widget::SystemInfoWidget, Message,
+    cpu_info_widget::CpuInfoWidget,
+    proc::{self, System},
+    process_list::ProcessList,
+    system_info_widget::SystemInfoWidget,
+    Message,
 };
 
 #[derive(Debug, Default)]
@@ -22,6 +26,18 @@ pub struct App {
 
     main_tx: Option<mpsc::Sender<Message>>,
 }
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error(transparent)]
+    ProcError(#[from] proc::Error),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    SendError(#[from] std::sync::mpsc::SendError<Message>),
+}
+
+type Result<T> = std::result::Result<T, Error>;
 
 impl App {
     pub fn new(show_kernel_threads: bool, show_threads: bool) -> Self {
@@ -37,8 +53,8 @@ impl App {
         terminal: &mut ratatui::DefaultTerminal,
         thread_rx: mpsc::Receiver<Message>,
         main_tx: mpsc::Sender<Message>,
-    ) -> io::Result<()> {
-        let _ = main_tx.send(Message::SendThreads(self.show_threads));
+    ) -> Result<()> {
+        main_tx.send(Message::SendThreads(self.show_threads))?;
         self.main_tx = Some(main_tx);
 
         while !self.exit {
@@ -48,6 +64,7 @@ impl App {
                 Ok(msg) => match msg {
                     Message::SysInfo(system) => self.handle_msg(system),
                     Message::Event(event) => self.handle_event(event),
+                    Message::Error(error) => return Err(error.into()),
                     _ => {}
                 },
                 Err(_) => break,

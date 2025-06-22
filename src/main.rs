@@ -17,6 +17,7 @@ pub enum Message {
     SysInfo(System),
     Event(Event),
     SendThreads(bool),
+    Error(proc::Error),
 }
 
 fn main() -> anyhow::Result<()> {

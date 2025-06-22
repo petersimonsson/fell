@@ -96,7 +96,7 @@ impl App {
             KeyCode::Char('q') | KeyCode::Esc => self.exit(),
             KeyCode::Char('k') => self.toggle_kernel_threads(),
             KeyCode::Char('t') => self.toggle_threads(),
-            KeyCode::Char('s') => self.toggle_stopped(),
+            KeyCode::Char('p') => self.toggle_stopped(),
             _ => {}
         }
     }
@@ -162,7 +162,7 @@ impl Widget for &mut App {
             .block(Block::new().borders(Borders::TOP))
             .left_aligned()
             .render(info_area, buf);
-        Paragraph::new("(Q)uit - Toggle (t)threads, (k)ernel threads - (S)topped")
+        Paragraph::new("(Q)uit - Toggle (t)threads, (k)ernel threads - (P)ause")
             .block(Block::new().borders(Borders::TOP))
             .right_aligned()
             .render(menu_area, buf);

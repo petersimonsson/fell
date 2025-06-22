@@ -155,8 +155,7 @@ impl Widget for &mut App {
             .show_kernel_threads(self.show_kernel_threads)
             .render(process_area, buf);
 
-        let infobar_layout =
-            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]);
+        let infobar_layout = Layout::horizontal([Constraint::Fill(1), Constraint::Length(54)]);
         let [info_area, menu_area] = infobar_layout.areas(infobar_area);
         Paragraph::new(self.error_str.clone())
             .block(Block::new().borders(Borders::TOP))

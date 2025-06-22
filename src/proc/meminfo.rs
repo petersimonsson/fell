@@ -27,32 +27,36 @@ impl FromStr for MemInfo {
                             .trim()
                             .strip_suffix(" kB")
                             .ok_or(Error::MemInfo("Failed to parse MemTotal".to_string()))?
-                            .parse()
-                            .map_err(|_| Error::MemInfo("Failed to parse MemTotal".to_string()))?;
+                            .parse::<usize>()
+                            .map_err(|_| Error::MemInfo("Failed to parse MemTotal".to_string()))?
+                            * 1024;
                     }
                     "MemFree" => {
-                        meminfo.mem_total = value
+                        meminfo.mem_free = value
                             .trim()
                             .strip_suffix(" kB")
                             .ok_or(Error::MemInfo("Failed to parse MemFree".to_string()))?
-                            .parse()
-                            .map_err(|_| Error::MemInfo("Failed to parse MemFree".to_string()))?;
+                            .parse::<usize>()
+                            .map_err(|_| Error::MemInfo("Failed to parse MemFree".to_string()))?
+                            * 1024;
                     }
                     "SwapTotal" => {
-                        meminfo.mem_total = value
+                        meminfo.swap_total = value
                             .trim()
                             .strip_suffix(" kB")
                             .ok_or(Error::MemInfo("Failed to parse SwapTotal".to_string()))?
-                            .parse()
-                            .map_err(|_| Error::MemInfo("Failed to parse SwapTotal".to_string()))?;
+                            .parse::<usize>()
+                            .map_err(|_| Error::MemInfo("Failed to parse SwapTotal".to_string()))?
+                            * 1024;
                     }
                     "SwapFree" => {
-                        meminfo.mem_total = value
+                        meminfo.swap_free = value
                             .trim()
                             .strip_suffix(" kB")
                             .ok_or(Error::MemInfo("Failed to parse SwapFree".to_string()))?
-                            .parse()
-                            .map_err(|_| Error::MemInfo("Failed to parse SwapFree".to_string()))?;
+                            .parse::<usize>()
+                            .map_err(|_| Error::MemInfo("Failed to parse SwapFree".to_string()))?
+                            * 1024;
                         break; // Stop parsing when we got all we want
                     }
                     _ => {}

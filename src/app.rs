@@ -3,7 +3,7 @@ use std::{io, sync::mpsc};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     layout::{Constraint, Layout},
-    widgets::Widget,
+    widgets::{Block, Borders, Paragraph, Widget},
     Frame,
 };
 
@@ -120,8 +120,9 @@ impl Widget for &mut App {
         let vertical = Layout::vertical([
             Constraint::Length(cpu_info.row_count().max(5) + 1),
             Constraint::Fill(1),
+            Constraint::Length(2),
         ]);
-        let [info_area, process_area] = vertical.areas(area);
+        let [info_area, process_area, infobar_area] = vertical.areas(area);
 
         let info_horiz =
             Layout::horizontal([Constraint::Fill(1), Constraint::Length(cpu_info.width())]);
@@ -132,5 +133,10 @@ impl Widget for &mut App {
         ProcessList::new(&self.current_data)
             .show_kernel_threads(self.show_kernel_threads)
             .render(process_area, buf);
+
+        Paragraph::new("(Q)uit - Toggle (t)threads, (k)ernel threads - (S)topped")
+            .block(Block::new().borders(Borders::TOP))
+            .right_aligned()
+            .render(infobar_area, buf);
     }
 }

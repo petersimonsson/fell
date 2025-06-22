@@ -28,7 +28,7 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
             }
         }
 
-        if let Ok(Message::SendThreads(state)) = rx.recv_timeout(Duration::from_millis(1_500)) {
+        if let Ok(Message::SendThreads(state)) = rx.recv_timeout(Duration::from_millis(2000)) {
             if send_threads != state {
                 send_threads = state;
                 proc.reset_prev_cpus();

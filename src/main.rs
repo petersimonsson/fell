@@ -11,7 +11,6 @@ mod proc;
 mod process_list;
 mod sysinfo_thread;
 mod system_info_widget;
-mod tui;
 mod utils;
 
 pub enum Message {
@@ -21,12 +20,12 @@ pub enum Message {
 }
 
 fn main() -> anyhow::Result<()> {
-    let mut terminal = tui::init()?;
+    let mut terminal = ratatui::init();
     let (thread_tx, thread_rx) = mpsc::channel::<Message>();
     let (main_tx, main_rx) = mpsc::channel::<Message>();
     sysinfo_thread::start_thread(thread_tx.clone(), main_rx)?;
     event::start_thread(thread_tx)?;
     let app_result = App::new(false, true).run(&mut terminal, thread_rx, main_tx);
-    tui::restore()?;
+    ratatui::restore();
     Ok(app_result?)
 }

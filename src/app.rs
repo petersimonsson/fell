@@ -9,7 +9,7 @@ use ratatui::{
 
 use crate::{
     cpu_info_widget::CpuInfoWidget, proc::System, process_list::ProcessList,
-    system_info_widget::SystemInfoWidget, tui::Tui, Message,
+    system_info_widget::SystemInfoWidget, Message,
 };
 
 #[derive(Debug, Default)]
@@ -34,7 +34,7 @@ impl App {
 
     pub fn run(
         &mut self,
-        terminal: &mut Tui,
+        terminal: &mut ratatui::DefaultTerminal,
         thread_rx: mpsc::Receiver<Message>,
         main_tx: mpsc::Sender<Message>,
     ) -> io::Result<()> {

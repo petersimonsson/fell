@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::proc::System;
 
-const COL_SIZE: u16 = 11;
+const COL_SIZE: u16 = 12;
 
 pub struct CpuInfoWidget<'a> {
     cpu_lines: Vec<Line<'a>>,

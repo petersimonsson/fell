@@ -1,9 +1,9 @@
 use ratatui::{
     buffer::Buffer,
-    layout::Rect,
+    layout::{Alignment, Rect},
     style::{Style, Styled, Stylize},
     text::Line,
-    widgets::{Paragraph, Widget},
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 
 use crate::proc::System;
@@ -12,6 +12,7 @@ const COL_SIZE: u16 = 12;
 
 pub struct CpuInfoWidget<'a> {
     cpu_lines: Vec<Line<'a>>,
+    average: f32,
     width: u16,
 }
 
@@ -51,7 +52,21 @@ impl<'a> CpuInfoWidget<'a> {
             cols * COL_SIZE
         };
 
-        CpuInfoWidget { cpu_lines, width }
+        let average = if let Some(cpu_usage) = &data.cpu_usage {
+            if let Some(cpu_usage) = cpu_usage.first() {
+                *cpu_usage
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
+
+        CpuInfoWidget {
+            cpu_lines,
+            average,
+            width,
+        }
     }
 
     pub fn row_count(&self) -> u16 {
@@ -68,6 +83,24 @@ impl<'a> Widget for &mut CpuInfoWidget<'a> {
     where
         Self: Sized,
     {
-        Paragraph::new(self.cpu_lines.clone()).render(area, buf);
+        let average_cpu_style = if self.average > 75.0 {
+            Style::default().red().bold()
+        } else if self.average > 50.0 {
+            Style::default().yellow().bold()
+        } else {
+            Style::default().bold()
+        };
+        let title = Line::default().spans(vec![
+            "CPU: ".into(),
+            format!("{:.1}%", self.average).set_style(average_cpu_style),
+        ]);
+        Paragraph::new(self.cpu_lines.clone())
+            .block(
+                Block::new()
+                    .title(title)
+                    .title_alignment(Alignment::Center)
+                    .borders(Borders::TOP),
+            )
+            .render(area, buf);
     }
 }

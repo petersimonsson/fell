@@ -1,9 +1,9 @@
 use ratatui::{
     buffer::Buffer,
-    layout::Rect,
+    layout::{Alignment, Rect},
     style::{Style, Styled, Stylize},
     text::Line,
-    widgets::{Paragraph, Widget},
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 
 use crate::{
@@ -26,30 +26,10 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
     where
         Self: Sized,
     {
-        let average_cpu = if let Some(cpu_usage) = &self.current_data.cpu_usage {
-            if let Some(cpu_usage) = cpu_usage.first() {
-                *cpu_usage
-            } else {
-                0.0
-            }
-        } else {
-            0.0
-        };
-        let average_cpu_style = if average_cpu > 75.0 {
-            Style::default().red().bold()
-        } else if average_cpu > 50.0 {
-            Style::default().yellow().bold()
-        } else {
-            Style::default().bold()
-        };
         let info = vec![
             Line::default().spans(vec![
                 "Uptime: ".into(),
                 human_duration(self.current_data.uptime).set_style(Style::default().bold()),
-            ]),
-            Line::default().spans(vec![
-                "Average CPU: ".into(),
-                format!("{:.1}%", average_cpu).set_style(average_cpu_style),
             ]),
             Line::default().spans(vec![
                 "Load average: ".into(),
@@ -98,6 +78,13 @@ impl<'a> Widget for &mut SystemInfoWidget<'a> {
                     .set_style(Style::default().gray().bold()),
             ]),
         ];
-        Paragraph::new(info).render(area, buf);
+        Paragraph::new(info)
+            .block(
+                Block::new()
+                    .title("System")
+                    .title_alignment(Alignment::Center)
+                    .borders(Borders::TOP),
+            )
+            .render(area, buf);
     }
 }

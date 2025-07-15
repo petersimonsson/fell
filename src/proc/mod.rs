@@ -6,7 +6,13 @@ pub mod process_info;
 mod stat;
 pub mod state;
 
-use std::{collections::HashMap, fs, path::PathBuf, str::FromStr, time::Duration};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+    str::FromStr,
+    time::Duration,
+};
 
 use cputime::CpuTime;
 use loadavg::LoadAvg;
@@ -84,17 +90,13 @@ impl Proc {
             if let Ok(name) = entry.file_name().into_string() {
                 if let Ok(pid) = name.parse::<i32>() {
                     if !get_threads {
-                        if let Some(info) =
-                            ProcessInfo::read(self, pid, pid, &entry.path(), uptime)?
-                        {
-                            if let ProcessType::KernelThread = info.process_type {
-                                num_threads.kernel_threads += 1;
-                            } else {
-                                num_threads.tasks += 1;
-                            }
-
-                            num_threads.threads += info.num_threads - 1;
-
+                        if let Some(info) = self.get_process_info(
+                            &entry.path(),
+                            pid,
+                            pid,
+                            uptime,
+                            &mut num_threads,
+                        )? {
                             processes.push(info);
                         }
                     } else {
@@ -102,19 +104,13 @@ impl Proc {
                         for entry in dir_iter.flatten() {
                             if let Ok(name) = entry.file_name().into_string() {
                                 if let Ok(tid) = name.parse::<i32>() {
-                                    if let Some(info) =
-                                        ProcessInfo::read(self, tid, pid, &entry.path(), uptime)?
-                                    {
-                                        if tid == pid {
-                                            if let ProcessType::KernelThread = info.process_type {
-                                                num_threads.kernel_threads += 1;
-                                            } else {
-                                                num_threads.tasks += 1;
-                                            }
-
-                                            num_threads.threads += info.num_threads - 1;
-                                        }
-
+                                    if let Some(info) = self.get_process_info(
+                                        &entry.path(),
+                                        tid,
+                                        pid,
+                                        uptime,
+                                        &mut num_threads,
+                                    )? {
                                         processes.push(info);
                                     }
                                 }
@@ -157,6 +153,31 @@ impl Proc {
             cpu_usage,
             mem_usage,
         })
+    }
+
+    fn get_process_info(
+        &mut self,
+        path: &Path,
+        tid: i32,
+        pid: i32,
+        uptime: f64,
+        num_threads: &mut ThreadCount,
+    ) -> Result<Option<ProcessInfo>> {
+        if let Some(info) = ProcessInfo::read(self, tid, pid, path, uptime)? {
+            if tid == pid {
+                if let ProcessType::KernelThread = info.process_type {
+                    num_threads.kernel_threads += 1;
+                } else {
+                    num_threads.tasks += 1;
+                }
+
+                num_threads.threads += info.num_threads - 1;
+            }
+
+            Ok(Some(info))
+        } else {
+            Ok(None)
+        }
     }
 }
 

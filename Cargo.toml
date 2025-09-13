@@ -2,7 +2,14 @@
 name = "fell"
 version = "0.1.0"
 edition = "2021"
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
+authors = ["Peter Simonsson <peter.simonsson@gmail.com>"]
+description = "A simple top alternative"
+readme = "README.md"
+repository = "https://github.com/petersimonsson/fell.git"
+homepage = "https://github.com/petersimonsson/fell.git"
+keywords = ["cli", "top"]
+categories = ["command-line-utilities"]
 
 [profile.release]
 debug = false

@@ -2,6 +2,8 @@ use std::{io, sync::mpsc, thread, time::Duration};
 
 use crate::{proc::Proc, Message};
 
+const UPDATE_INTERVAL: u64 = 2000;
+
 pub fn start_thread(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) -> io::Result<()> {
     thread::Builder::new()
         .name("fell-sysinfo".to_string())
@@ -28,7 +30,9 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
             }
         }
 
-        if let Ok(Message::SendThreads(state)) = rx.recv_timeout(Duration::from_millis(2000)) {
+        if let Ok(Message::SendThreads(state)) =
+            rx.recv_timeout(Duration::from_millis(UPDATE_INTERVAL))
+        {
             if send_threads != state {
                 send_threads = state;
                 proc.reset_prev_cpus();

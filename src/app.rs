@@ -31,11 +31,11 @@ pub struct App {
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    ProcError(#[from] proc::Error),
+    Proc(#[from] proc::Error),
     #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     #[error(transparent)]
-    SendError(#[from] std::sync::mpsc::SendError<Message>),
+    Mpsc(#[from] std::sync::mpsc::SendError<Message>),
 }
 
 type Result<T> = std::result::Result<T, Error>;

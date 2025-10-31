@@ -2,4 +2,12 @@
 
 # Fell
 
-A simple top alternative.
+A simple top alternative written in Rust.
+
+## Build
+
+```
+cargo build
+```
+```
+```

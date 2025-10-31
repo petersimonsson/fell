@@ -8,9 +8,9 @@ pub mod state;
 
 use std::{
     collections::HashMap,
-    fs,
+    fs::{self, File},
+    io::{self, BufRead},
     path::{Path, PathBuf},
-    str::FromStr,
     time::Duration,
 };
 
@@ -125,8 +125,7 @@ impl Proc {
 
         let load_avg = LoadAvg::load("/proc/loadavg".into())?;
 
-        let input = fs::read_to_string("/proc/stat")?;
-        let cpu_time = cputime::parse_cpu_times(&input)?;
+        let cpu_time = cputime::parse_cpu_times("/proc/stat")?;
 
         let cpu_usage = if !self.prev_cpu_time.is_empty() {
             Some(
@@ -140,8 +139,7 @@ impl Proc {
             None
         };
 
-        let input = fs::read_to_string("/proc/meminfo")?;
-        let mem_usage = MemInfo::from_str(&input)?;
+        let mem_usage = MemInfo::parse("/proc/meminfo")?;
 
         self.prev_cpu_time = cpu_time;
 
@@ -195,6 +193,11 @@ fn read_uptime(path: PathBuf) -> Result<f64> {
     uptime
         .parse::<f64>()
         .map_err(|_| Error::Uptime("Failed to parse uptime to f64".to_string()))
+}
+
+pub(crate) fn read_lines(filename: impl AsRef<Path>) -> io::Result<io::Lines<io::BufReader<File>>> {
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
 }
 
 #[cfg(test)]

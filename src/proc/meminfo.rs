@@ -1,4 +1,6 @@
-use std::str::FromStr;
+use std::{io, path::Path};
+
+use crate::proc::read_lines;
 
 use super::Error;
 
@@ -10,12 +12,12 @@ pub struct MemInfo {
     pub swap_free: usize,
 }
 
-impl FromStr for MemInfo {
-    type Err = Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+impl MemInfo {
+    pub fn parse(filename: impl AsRef<Path>) -> Result<Self, Error> {
         let mut meminfo = MemInfo::default();
-        for line in s.split('\n') {
+        let lines = read_lines(filename)?;
+
+        for line in lines.map_while(io::Result::ok) {
             if !line.is_empty() {
                 let (key, value) = line.split_once(':').ok_or(Error::MemInfo(
                     "Failed to parse memory info line".to_string(),
@@ -63,12 +65,9 @@ impl FromStr for MemInfo {
                 }
             }
         }
-
         Ok(meminfo)
     }
-}
 
-impl MemInfo {
     pub fn mem_used(&self) -> usize {
         self.mem_total - self.mem_free
     }

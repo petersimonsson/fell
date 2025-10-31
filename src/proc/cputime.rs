@@ -1,11 +1,15 @@
-use std::str::FromStr;
+use std::{io, path::Path, str::FromStr};
+
+use crate::proc::read_lines;
 
 use super::{Error, Result};
 
-pub(super) fn parse_cpu_times(input: &str) -> Result<Vec<CpuTime>> {
+pub(super) fn parse_cpu_times(filename: impl AsRef<Path>) -> Result<Vec<CpuTime>> {
     let mut ret = Vec::default();
 
-    for line in input.split('\n') {
+    let lines = read_lines(filename)?;
+
+    for line in lines.map_while(io::Result::ok) {
         if line.starts_with("cpu") {
             let (_, times) = line
                 .split_once(' ')

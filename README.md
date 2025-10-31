@@ -9,5 +9,3 @@ A simple top alternative written in Rust.
 ```
 cargo build
 ```
-```
-```

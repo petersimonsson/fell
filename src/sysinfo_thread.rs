@@ -1,6 +1,6 @@
 use std::{io, sync::mpsc, thread, time::Duration};
 
-use crate::{proc::Proc, Message};
+use crate::{Message, proc::Proc};
 
 const UPDATE_INTERVAL: u64 = 2000;
 
@@ -32,11 +32,10 @@ fn thread_main(tx: mpsc::Sender<Message>, rx: mpsc::Receiver<Message>) {
 
         if let Ok(Message::SendThreads(state)) =
             rx.recv_timeout(Duration::from_millis(UPDATE_INTERVAL))
+            && send_threads != state
         {
-            if send_threads != state {
-                send_threads = state;
-                proc.reset_prev_cpus();
-            }
+            send_threads = state;
+            proc.reset_prev_cpus();
         }
     }
 }

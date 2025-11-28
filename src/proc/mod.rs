@@ -86,28 +86,32 @@ impl Proc {
         let mut num_threads = ThreadCount::default();
         let uptime = read_uptime("/proc/uptime".into())?;
 
-        for entry in dir_iter.flatten() {
-            if let Ok(name) = entry.file_name().into_string()
-                && let Ok(pid) = name.parse::<i32>()
-            {
-                if !get_threads {
-                    if let Some(info) =
-                        self.get_process_info(&entry.path(), pid, pid, uptime, &mut num_threads)?
-                    {
-                        processes.push(info);
-                    }
-                } else {
+        if !get_threads {
+            for entry in dir_iter.flatten() {
+                if let Ok(name) = entry.file_name().into_string()
+                    && let Ok(pid) = name.parse::<i32>()
+                    && let Ok(Some(info)) =
+                        self.get_process_info(&entry.path(), pid, pid, uptime, &mut num_threads)
+                {
+                    processes.push(info);
+                }
+            }
+        } else {
+            for entry in dir_iter.flatten() {
+                if let Ok(name) = entry.file_name().into_string()
+                    && let Ok(pid) = name.parse::<i32>()
+                {
                     let dir_iter = fs::read_dir(entry.path().join("task"))?;
                     for entry in dir_iter.flatten() {
                         if let Ok(name) = entry.file_name().into_string()
                             && let Ok(tid) = name.parse::<i32>()
-                            && let Some(info) = self.get_process_info(
+                            && let Ok(Some(info)) = self.get_process_info(
                                 &entry.path(),
                                 tid,
                                 pid,
                                 uptime,
                                 &mut num_threads,
-                            )?
+                            )
                         {
                             processes.push(info);
                         }

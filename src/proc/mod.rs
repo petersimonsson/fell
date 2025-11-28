@@ -19,6 +19,7 @@ use loadavg::LoadAvg;
 use meminfo::MemInfo;
 use prev_cpu::{PrevCpu, PrevCpuMap};
 use process_info::{ProcessInfo, ProcessType};
+use rustix::path::Arg;
 use state::State;
 use thiserror::Error;
 
@@ -87,15 +88,20 @@ impl Proc {
         let uptime = read_uptime("/proc/uptime".into())?;
 
         if !get_threads {
-            for entry in dir_iter.flatten() {
-                if let Ok(name) = entry.file_name().into_string()
-                    && let Ok(pid) = name.parse::<i32>()
-                    && let Ok(Some(info)) =
-                        self.get_process_info(&entry.path(), pid, pid, uptime, &mut num_threads)
-                {
-                    processes.push(info);
-                }
-            }
+            processes = dir_iter
+                .flatten()
+                .filter_map(|entry| {
+                    if let Ok(name) = entry.file_name().as_str()
+                        && let Ok(pid) = name.parse::<i32>()
+                        && let Ok(Some(info)) =
+                            self.get_process_info(&entry.path(), pid, pid, uptime, &mut num_threads)
+                    {
+                        Some(info)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
         } else {
             for entry in dir_iter.flatten() {
                 if let Ok(name) = entry.file_name().into_string()

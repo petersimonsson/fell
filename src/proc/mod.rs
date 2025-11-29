@@ -87,29 +87,30 @@ impl Proc {
         let mut num_threads = ThreadCount::default();
         let uptime = read_uptime("/proc/uptime".into())?;
 
+        let pid_paths = dir_iter.filter_map(|entry| {
+            if let Ok(entry) = entry
+                && let Ok(name) = entry.file_name().as_str()
+                && let Ok(pid) = name.parse::<i32>()
+            {
+                Some((pid, entry.path()))
+            } else {
+                None
+            }
+        });
+
         if !get_threads {
-            processes = dir_iter
-                .flatten()
-                .filter_map(|entry| {
-                    if let Ok(name) = entry.file_name().as_str()
-                        && let Ok(pid) = name.parse::<i32>()
-                        && let Ok(Some(info)) =
-                            self.get_process_info(&entry.path(), pid, pid, uptime, &mut num_threads)
-                    {
-                        Some(info)
-                    } else {
-                        None
-                    }
+            processes = pid_paths
+                .filter_map(|(pid, path)| {
+                    self.get_process_info(&path, pid, pid, uptime, &mut num_threads)
+                        .unwrap_or(None)
                 })
                 .collect();
         } else {
-            for entry in dir_iter.flatten() {
-                if let Ok(name) = entry.file_name().into_string()
-                    && let Ok(pid) = name.parse::<i32>()
-                {
-                    let dir_iter = fs::read_dir(entry.path().join("task"))?;
-                    for entry in dir_iter.flatten() {
-                        if let Ok(name) = entry.file_name().into_string()
+            for (pid, path) in pid_paths {
+                let threads: Vec<ProcessInfo> = fs::read_dir(path.join("task"))?
+                    .flatten()
+                    .filter_map(|entry| {
+                        if let Ok(name) = entry.file_name().as_str()
                             && let Ok(tid) = name.parse::<i32>()
                             && let Ok(Some(info)) = self.get_process_info(
                                 &entry.path(),
@@ -119,10 +120,14 @@ impl Proc {
                                 &mut num_threads,
                             )
                         {
-                            processes.push(info);
+                            Some(info)
+                        } else {
+                            None
                         }
-                    }
-                }
+                    })
+                    .collect();
+
+                processes.extend(threads);
             }
         }
 

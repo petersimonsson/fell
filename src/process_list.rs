@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap};
 
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
     style::Style,
-    widgets::{Row, Table, Widget},
+    widgets::{Row, StatefulWidget, Table, TableState, Widget},
 };
 
 use crate::{
@@ -12,29 +13,53 @@ use crate::{
     utils::human_bytes,
 };
 
-pub struct ProcessList<'a> {
-    current_data: &'a System,
+#[derive(Debug, Default)]
+pub struct ProcessList {
+    current_data: System,
     usernames: HashMap<u32, String>,
     show_kernel_threads: bool,
+    state: TableState,
 }
 
-impl<'a> ProcessList<'a> {
-    pub fn new(data: &'a System) -> Self {
+impl ProcessList {
+    pub fn new(show_kernel_threads: bool) -> Self {
         ProcessList {
-            current_data: data,
+            current_data: System::default(),
             usernames: HashMap::default(),
-            show_kernel_threads: false,
+            show_kernel_threads,
+            state: TableState::default(),
         }
     }
 
-    pub fn show_kernel_threads(mut self, show: bool) -> Self {
-        self.show_kernel_threads = show;
+    pub fn toggle_kernel_threads(&mut self) {
+        self.show_kernel_threads = !self.show_kernel_threads;
+    }
 
-        self
+    pub fn handle_key_event(&mut self, key_event: KeyEvent) {
+        match key_event.code {
+            KeyCode::Up => self.state.select_previous(),
+            KeyCode::Down => self.state.select_next(),
+            _ => {}
+        }
+    }
+
+    pub fn set_data(&mut self, data: System) {
+        self.current_data = data;
+        self.current_data.processes.sort_by(|a, b| {
+            if let Some(cmp) = a.cpu_usage.partial_cmp(&b.cpu_usage) {
+                cmp.reverse()
+            } else {
+                Ordering::Equal
+            }
+        });
+    }
+
+    pub fn data(&self) -> &System {
+        &self.current_data
     }
 }
 
-impl<'a> Widget for &mut ProcessList<'a> {
+impl Widget for &mut ProcessList {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -105,7 +130,7 @@ impl<'a> Widget for &mut ProcessList<'a> {
             Constraint::Fill(1),
         ];
 
-        Table::new(rows, widths)
+        let table = Table::new(rows, widths)
             .column_spacing(1)
             .header(
                 Row::new(vec![
@@ -113,7 +138,8 @@ impl<'a> Widget for &mut ProcessList<'a> {
                 ])
                 .style(Style::new().underlined()),
             )
-            .row_highlight_style(Style::new().reversed())
-            .render(area, buf);
+            .row_highlight_style(Style::new().reversed());
+
+        StatefulWidget::render(table, area, buf, &mut self.state);
     }
 }

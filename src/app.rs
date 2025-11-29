@@ -2,28 +2,28 @@ use std::sync::mpsc;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
+    Frame,
     layout::{Constraint, Layout},
     widgets::{Block, Borders, Paragraph, Widget},
-    Frame,
 };
 use thiserror::Error;
 
 use crate::{
+    Message,
     cpu_info_widget::CpuInfoWidget,
     proc::{self, System},
     process_list::ProcessList,
     system_info_widget::SystemInfoWidget,
-    Message,
 };
 
 #[derive(Debug, Default)]
 pub struct App {
     exit: bool,
     stopped: bool,
-    show_kernel_threads: bool,
     show_threads: bool,
-    current_data: System,
     error_str: String,
+
+    process_list: ProcessList,
 
     main_tx: Option<mpsc::Sender<Message>>,
 }
@@ -43,8 +43,8 @@ type Result<T> = std::result::Result<T, Error>;
 impl App {
     pub fn new(show_kernel_threads: bool, show_threads: bool) -> Self {
         App {
-            show_kernel_threads,
             show_threads,
+            process_list: ProcessList::new(show_kernel_threads),
             ..Default::default()
         }
     }
@@ -85,7 +85,8 @@ impl App {
     fn handle_event(&mut self, event: Event) {
         match event {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_event(key_event)
+                self.handle_key_event(key_event);
+                self.process_list.handle_key_event(key_event);
             }
             _ => {}
         }
@@ -111,15 +112,12 @@ impl App {
 
     fn handle_msg(&mut self, msg: System) {
         if !self.stopped {
-            self.current_data = msg;
-            self.current_data
-                .processes
-                .sort_by(|a, b| a.cpu_usage.partial_cmp(&b.cpu_usage).unwrap().reverse());
+            self.process_list.set_data(msg);
         }
     }
 
     fn toggle_kernel_threads(&mut self) {
-        self.show_kernel_threads = !self.show_kernel_threads;
+        self.process_list.toggle_kernel_threads();
     }
 
     fn toggle_threads(&mut self) {
@@ -136,7 +134,7 @@ impl Widget for &mut App {
     where
         Self: Sized,
     {
-        let mut cpu_info = CpuInfoWidget::new(&self.current_data, area.width - 47);
+        let mut cpu_info = CpuInfoWidget::new(self.process_list.data(), area.width - 47);
 
         let vertical = Layout::vertical([
             Constraint::Length(cpu_info.row_count().max(5) + 1),
@@ -149,11 +147,10 @@ impl Widget for &mut App {
             Layout::horizontal([Constraint::Fill(1), Constraint::Length(cpu_info.width())]);
         let [info_area, cpu_area] = info_horiz.areas(info_area);
 
-        SystemInfoWidget::new(&self.current_data).render(info_area, buf);
+        SystemInfoWidget::new(self.process_list.data()).render(info_area, buf);
         cpu_info.render(cpu_area, buf);
-        ProcessList::new(&self.current_data)
-            .show_kernel_threads(self.show_kernel_threads)
-            .render(process_area, buf);
+
+        self.process_list.render(process_area, buf);
 
         let infobar_layout = Layout::horizontal([Constraint::Fill(1), Constraint::Length(54)]);
         let [info_area, menu_area] = infobar_layout.areas(infobar_area);

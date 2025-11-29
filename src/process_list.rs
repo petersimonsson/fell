@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
-    style::{Style, Stylize},
+    style::Style,
     widgets::{Row, Table, Widget},
 };
 
 use crate::{
-    proc::{process_info::ProcessType, System},
+    proc::{System, process_info::ProcessType},
     utils::human_bytes,
 };
 

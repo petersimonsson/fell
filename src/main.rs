@@ -26,7 +26,7 @@ fn main() -> anyhow::Result<()> {
     let (main_tx, main_rx) = mpsc::channel::<Message>();
     sysinfo_thread::start_thread(thread_tx.clone(), main_rx)?;
     event::start_thread(thread_tx)?;
-    let app_result = App::new(false, true).run(&mut terminal, thread_rx, main_tx);
+    let app_result = App::new(false, false).run(&mut terminal, thread_rx, main_tx);
     ratatui::restore();
     Ok(app_result?)
 }

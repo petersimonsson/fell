@@ -158,7 +158,7 @@ impl Widget for &mut App {
             .block(Block::new().borders(Borders::TOP))
             .left_aligned()
             .render(info_area, buf);
-        Paragraph::new("(Q)uit - Toggle (t)threads, (k)ernel threads - (P)ause")
+        Paragraph::new("(Q)uit - Toggle (t)hreads, (k)ernel threads - (P)ause")
             .block(Block::new().borders(Borders::TOP))
             .right_aligned()
             .render(menu_area, buf);
